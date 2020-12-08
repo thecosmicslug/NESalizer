@@ -1,89 +1,55 @@
+#include <string>
+#include <iostream>
+
 #include "common.h"
 
 #include "audio.h"
 #include "cpu.h"
 #include "input.h"
-#ifdef RECORD_MOVIE
-#  include "movie.h"
-#endif
+
 #include "save_states.h"
 #include "sdl_backend.h"
-#ifdef RUN_TESTS
-#  include "test.h"
-#endif
-
-#include <SDL.h>
-
-//
-// Video
-//
-
-// Each pixel is scaled to scale_factor*scale_factor pixels
-unsigned const scale_factor = 3;
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
 
 static SDL_Window   *screen;
 static SDL_Renderer *renderer;
 static SDL_Texture  *screen_tex;
-
-// On Unity with the Nouveau driver, displaying the frame sometimes blocks for
-// a very long time (to the tune of only managing 30 FPS with everything
-// removed but render calls when the translucent Ubuntu menu is open, and often
-// less than 60 with Firefox open too). This in turn slows down emulation and
-// messes up audio. To get around it, we upload frames in the SDL thread and
-// keep a back buffer for drawing into from the emulation thread while the
-// frame is being uploaded (a kind of manual triple buffering). If the frame
-// doesn't upload in time for the next frame, we drop the new frame. This gives
-// us automatic frame skipping in general.
-//
-// TODO: This could probably be optimized to eliminate some copying and format
-// conversions.
-
 static Uint32 *front_buffer;
 static Uint32 *back_buffer;
 
-static SDL_mutex *frame_lock;
-static SDL_cond  *frame_available_cond;
 static bool ready_to_draw_new_frame;
 static bool frame_available;
+static bool pending_sdl_thread_exit;
+static SDL_cond  *frame_available_cond;
 
-void put_pixel(unsigned x, unsigned y, uint32_t color) {
-    assert(x < 256);
-    assert(y < 240);
+SDL_mutex *frame_lock;
+SDL_mutex   *event_lock;
 
-    back_buffer[256*y + x] = color;
-}
-
-void draw_frame() {
-#ifdef RECORD_MOVIE
-    add_movie_video_frame(back_buffer);
-#endif
-
-    // Signal to the SDL thread that the frame has ended
-
-    SDL_LockMutex(frame_lock);
-    // Drop the new frame if the old one is still being rendered. This also
-    // means that we drop event processing for one frame, but it's probably not
-    // a huge deal.
-    if (ready_to_draw_new_frame) {
-        frame_available = true;
-        swap(back_buffer, front_buffer);
-        SDL_CondSignal(frame_available_cond);
-    }
-    SDL_UnlockMutex(frame_lock);
-}
-
-//
-// Audio
-//
-
-Uint16 const sdl_audio_buffer_size = 2048;
 static SDL_AudioDeviceID audio_device_id;
 
-static void audio_callback(void*, Uint8 *stream, int len) {
-    assert(len >= 0);
+// Framerate control:
+const int FPS = 60;
+const int DELAY = 100.0f / FPS;
 
-    read_samples((int16_t*)stream, len/sizeof(int16_t));
-}
+const unsigned WIDTH = 256;
+const unsigned HEIGHT = 240;
+
+struct Controller_t
+{
+	enum Type {
+		k_Available,
+		k_Joystick,
+		k_Gamepad,
+	} type;
+
+	SDL_JoystickID instance_id;
+	SDL_Joystick *joystick;
+	SDL_GameController *gamepad;
+};
+static Controller_t controllers[2];
+
+static void process_events();
 
 void lock_audio() { SDL_LockAudioDevice(audio_device_id); }
 void unlock_audio() { SDL_UnlockAudioDevice(audio_device_id); }
@@ -91,81 +57,273 @@ void unlock_audio() { SDL_UnlockAudioDevice(audio_device_id); }
 void start_audio_playback() { SDL_PauseAudioDevice(audio_device_id, 0); }
 void stop_audio_playback() { SDL_PauseAudioDevice(audio_device_id, 1); }
 
-//
-// Input
-//
-
-Uint8 const *keys;
-
-//
-// SDL thread and events
-//
-
-// Runs from emulation thread
-void handle_ui_keys() {
-    SDL_LockMutex(event_lock);
-
-    if (keys[SDL_SCANCODE_S])
-        save_state();
-    else if (keys[SDL_SCANCODE_L])
-        load_state();
-
-    handle_rewind(keys[SDL_SCANCODE_R]);
-
-    if (reset_pushed)
-        soft_reset();
-
-    SDL_UnlockMutex(event_lock);
+void put_pixel(unsigned x, unsigned y, uint32_t color) {
+    assert(x < 256);
+    assert(y < 240);
+    back_buffer[256*y + x] = color;
 }
 
-static bool pending_sdl_thread_exit;
+void draw_frame() {
 
-// Protects the 'keys' array from being read while being updated
-SDL_mutex   *event_lock;
+    uint32_t frameStart, frameTime;
+    frameStart = SDL_GetTicks();
+
+    SDL_LockMutex(frame_lock);
+    if (ready_to_draw_new_frame) {
+        frame_available = true;
+        swap(back_buffer, front_buffer);
+        SDL_CondSignal(frame_available_cond);
+    } else {
+        //printf("dropping frame\n");
+    }
+
+    SDL_UnlockMutex(frame_lock);
+    // Wait to mantain framerate:
+    frameTime = SDL_GetTicks() - frameStart;
+    if (frameTime < DELAY) {
+        SDL_Delay((int)(DELAY - frameTime));
+    }
+}
+
+static void audio_callback(void*, Uint8 *stream, int len) {
+    assert(len >= 0);
+    read_samples((int16_t*)stream, len/sizeof(int16_t));
+}
+
+bool saveScreenshot(const std::string &file, SDL_Renderer *renderer ) {
+  SDL_Rect _viewport;
+  SDL_Surface *_surface = NULL;
+  SDL_RenderGetViewport( renderer, &_viewport);
+  _surface = SDL_CreateRGBSurface( 0, _viewport.w, _viewport.h, 32, 0, 0, 0, 0 );
+  if ( _surface == NULL ) {
+    std::cout << "Cannot create SDL_Surface: " << SDL_GetError() << std::endl;
+    return false;
+   }
+  if ( SDL_RenderReadPixels( renderer, NULL, _surface->format->format, _surface->pixels, _surface->pitch ) != 0 ) {
+    std::cout << "Cannot read data from SDL_Renderer: " << SDL_GetError() << std::endl;
+    SDL_FreeSurface(_surface);
+    return false;
+  }
+  if ( IMG_SavePNG( _surface, file.c_str() ) != 0 ) {
+    std::cout << "Cannot save PNG file: " << SDL_GetError() << std::endl;
+    SDL_FreeSurface(_surface);
+    return false;
+  }
+  SDL_FreeSurface(_surface);
+  return true;
+}
+
+static void add_controller(Controller_t::Type type, int device_index)
+{
+	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
+		Controller_t &controller = controllers[i];
+		if (controller.type == Controller_t::k_Available) {
+			if (type == Controller_t::k_Gamepad) {
+				controller.gamepad = SDL_GameControllerOpen(device_index);
+				if (!controller.gamepad) {
+					fprintf(stderr, "Couldn't open gamepad: %s\n", SDL_GetError());
+					return;
+				}
+				controller.joystick = SDL_GameControllerGetJoystick(controller.gamepad);
+				printf("Opened game controller %s at index %d\n", SDL_GameControllerName(controller.gamepad), i);
+			} else {
+				controller.joystick = SDL_JoystickOpen(device_index);
+				if (!controller.joystick) {
+					fprintf(stderr, "Couldn't open joystick: %s\n", SDL_GetError());
+					return;
+				}
+				printf("Opened joystick %s at index %d\n", SDL_JoystickName(controller.joystick), i);
+			}
+			controller.type = type;
+			controller.instance_id = SDL_JoystickInstanceID(controller.joystick);
+			return;
+		}
+	}
+}
+
+static bool get_controller_index(SDL_JoystickID instance_id, int *controller_index)
+{
+	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
+		Controller_t &controller = controllers[i];
+		if (controller.type != Controller_t::k_Gamepad) {
+			continue;
+		}
+		if (controller.instance_id != instance_id) {
+			continue;
+		}
+		*controller_index = i;
+		return true;
+	}
+	return false;
+}
+
+static void remove_controller(Controller_t::Type type, SDL_JoystickID instance_id)
+{
+	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
+		Controller_t &controller = controllers[i];
+		if (controller.type != type) {
+			continue;
+		}
+		if (controller.instance_id != instance_id) {
+			continue;
+		}
+		if (controller.type == Controller_t::k_Gamepad) {
+			SDL_GameControllerClose(controller.gamepad);
+		} else {
+			SDL_JoystickClose(controller.joystick);
+		}
+		controller.type = Controller_t::k_Available;
+		return;
+	}
+}
 
 static void process_events() {
+
     SDL_Event event;
     SDL_LockMutex(event_lock);
-    while (SDL_PollEvent(&event))
-        if (event.type == SDL_QUIT) {
-            end_emulation();
-            pending_sdl_thread_exit = true;
-#ifdef RUN_TESTS
-            end_testing = true;
-#endif
+
+    while (SDL_PollEvent(&event)) {
+        switch(event.type)
+        {
+            case SDL_QUIT:
+                end_emulation();
+                pending_sdl_thread_exit = true;
+                break;
+            case SDL_CONTROLLERDEVICEADDED:
+		        add_controller(Controller_t::k_Gamepad, event.cdevice.which);
+		        break;
+            case SDL_CONTROLLERDEVICEREMOVED:
+		        remove_controller(Controller_t::k_Gamepad, event.cdevice.which);
+		        break;
+            case SDL_CONTROLLERBUTTONDOWN:
+                int controller_index_down;
+                if (!get_controller_index(event.cbutton.which, &controller_index_down)) {
+                    break;
+                }
+                switch(event.cbutton.button)
+                {
+                    case  SDL_CONTROLLER_BUTTON_A:
+                        set_button_state(controller_index_down,0);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_B:
+                        set_button_state(controller_index_down,1);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_BACK:
+                        set_button_state(controller_index_down,2);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_START:
+                        set_button_state(controller_index_down,3);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        set_button_state(controller_index_down,4);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        set_button_state(controller_index_down,5);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        set_button_state(controller_index_down,6);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        set_button_state(controller_index_down,7);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                        // Load Save-state
+                        printf("user called load_state()\n");
+                        load_state();
+                        break;
+                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+                        // Save State
+                        printf("user called save_state()\n");
+                        save_state();
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_LEFTSTICK:
+                        // Reset the running ROM
+                        //printf("User reset the Running ROM!\n");
+                        //soft_reset();
+                        printf("Saving screenshot!\n");
+                        saveScreenshot("nesalizer.png",renderer);
+                        break;     
+                    case  SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                        // Exit NESalizer!
+                        printf("User pressed quit!\n");
+                        exit_sdl_thread();
+                        deinit_sdl();
+                        break;     
+                }
+		        break;
+            case SDL_CONTROLLERBUTTONUP:
+                int controller_index_up;
+                if (!get_controller_index(event.cbutton.which, &controller_index_up)) {
+                    break;
+                }
+                switch(event.cbutton.button)
+                {
+                    case  SDL_CONTROLLER_BUTTON_A:
+                        clear_button_state(controller_index_up,0);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_B:
+                        clear_button_state(controller_index_up,1);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_BACK:
+                        clear_button_state(controller_index_up,2);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_START:
+                        clear_button_state(controller_index_up,3);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        clear_button_state(controller_index_up,4);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        clear_button_state(controller_index_up,5);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        clear_button_state(controller_index_up,6);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        clear_button_state(controller_index_up,7);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                        // Exit NESalizer!
+                        printf("User quit!\n");
+                        exit_sdl_thread();
+                        deinit_sdl();
+                        break;     
+                }
+            break;
         }
+    }
     SDL_UnlockMutex(event_lock);
 }
 
 void sdl_thread() {
-    for (;;) {
-
+    printf("Entering sdl_thread\n");
+    SDL_UnlockMutex(frame_lock);
+    for(;;) {
         // Wait for the emulation thread to signal that a frame has completed
-
         SDL_LockMutex(frame_lock);
         ready_to_draw_new_frame = true;
         while (!frame_available && !pending_sdl_thread_exit)
             SDL_CondWait(frame_available_cond, frame_lock);
         if (pending_sdl_thread_exit) {
             SDL_UnlockMutex(frame_lock);
+            pending_sdl_thread_exit = false;
             return;
         }
         frame_available = ready_to_draw_new_frame = false;
         SDL_UnlockMutex(frame_lock);
-
-        // Process events and calculate controller input state (which might
-        // need left+right/up+down elimination)
-
         process_events();
-
         // Draw the new frame
-
-        fail_if(SDL_UpdateTexture(screen_tex, 0, front_buffer, 256*sizeof(Uint32)),
-          "failed to update screen texture: %s", SDL_GetError());
-        fail_if(SDL_RenderCopy(renderer, screen_tex, 0, 0),
-          "failed to copy rendered frame to render target: %s", SDL_GetError());
+        if(SDL_UpdateTexture(screen_tex, 0, front_buffer, 256*sizeof(Uint32))) {
+            printf("failed to update screen texture: %s", SDL_GetError());
+            exit(1);
+        }
+        if(SDL_RenderCopy(renderer, screen_tex, 0, 0)) {
+            printf("failed to copy rendered frame to render target: %s", SDL_GetError());
+            exit(1);
+        }
         SDL_RenderPresent(renderer);
     }
+    printf("Exiting sdl_thread\n");
 }
 
 void exit_sdl_thread() {
@@ -175,39 +333,30 @@ void exit_sdl_thread() {
     SDL_UnlockMutex(frame_lock);
 }
 
-//
 // Initialization and de-initialization
-//
-
 void init_sdl() {
-    SDL_version sdl_compiled_version, sdl_linked_version;
-    SDL_VERSION(&sdl_compiled_version);
-    SDL_GetVersion(&sdl_linked_version);
-    printf("Using SDL backend. Compiled against SDL %d.%d.%d, linked to SDL %d.%d.%d.\n",
-           sdl_compiled_version.major, sdl_compiled_version.minor, sdl_compiled_version.patch,
-           sdl_linked_version.major, sdl_linked_version.minor, sdl_linked_version.patch);
 
-    // SDL and video
+    if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
+    {
+        printf("failed to initialize SDL: %s", SDL_GetError());
+        exit(1);
+    }
 
-    // Make this configurable later
-    SDL_DisableScreenSaver();
+    if(!(screen = SDL_CreateWindow(NULL,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED , 256 , 240 , SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
+    {
+        printf("failed to create window: %s", SDL_GetError());
+        exit(1);
+    }
 
-    fail_if(SDL_Init(SDL_INIT_AUDIO | SDL_INIT_VIDEO) != 0,
-      "failed to initialize SDL: %s", SDL_GetError());
-
-    fail_if(!(screen =
-      SDL_CreateWindow(
-        "Nesalizer",
-        SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
-        scale_factor*256, scale_factor*240,
-        0)),
-      "failed to create window: %s", SDL_GetError());
-
-    fail_if(!(renderer = SDL_CreateRenderer(screen, -1, 0)),
-      "failed to create rendering context: %s", SDL_GetError());
+    if(!(renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE))) 
+    {
+        printf("failed to create rendering context: %s", SDL_GetError());
+        exit(1);
+    }
 
     // Display some information about the renderer
     SDL_RendererInfo renderer_info;
+    printf("SDL_GetRendererInfo\n");
     if (SDL_GetRendererInfo(renderer, &renderer_info))
         puts("Failed to get renderer information from SDL");
     else {
@@ -228,68 +377,79 @@ void init_sdl() {
         putchar('\n');
     }
 
-    fail_if(!(screen_tex =
-      SDL_CreateTexture(
-        renderer,
-        // SDL takes endianess into account, so this becomes GL_RGBA8
-        // internally on little-endian systems
-        SDL_PIXELFORMAT_ARGB8888,
-        SDL_TEXTUREACCESS_STREAMING,
-        256, 240)),
-      "failed to create texture for screen: %s", SDL_GetError());
+    printf("SDL_SetHint\n");
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+    printf("SDL_CreateTexture\n");
+    
+    if(!(screen_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888 , SDL_TEXTUREACCESS_STREAMING , 256 , 240))) 
+    {
+        printf("failed to create texture for screen: %s", SDL_GetError());
+        exit(1);
+    }
 
     static Uint32 render_buffers[2][240*256];
     back_buffer  = render_buffers[0];
     front_buffer = render_buffers[1];
 
     // Audio
-
     SDL_AudioSpec want;
-    SDL_zero(want);
-    want.freq     = sample_rate;
-    want.format   = AUDIO_S16SYS;
+    SDL_AudioSpec got;
+
+    want.freq     = sample_rate; 
+    want.format   = AUDIO_S16LSB;  // AUDIO_S16SYS in original - AUDIO_S16LSB in kevtroots switch port
     want.channels = 1;
     want.samples  = sdl_audio_buffer_size;
     want.callback = audio_callback;
 
-    fail_if(!(audio_device_id = SDL_OpenAudioDevice(0, 0, &want, 0, 0)),
-      "failed to initialize audio: %s\n", SDL_GetError());
-
+    printf("SDL_OpenAudioDevice\n");
+    audio_device_id = SDL_OpenAudioDevice(0, 0, &want, &got, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    
+    printf("freq: %i, %i\n", want.freq, got.freq);
+    printf("format: %i, %i\n", want.format, got.format);
+    printf("channels: %i, %i\n", want.channels, got.channels);
+    printf("samples: %i, %i\n", want.samples, got.samples);
+    
     // Input
-
-    // We use SDL_GetKey/MouseState() instead
-    SDL_EventState(SDL_KEYDOWN        , SDL_IGNORE);
-    SDL_EventState(SDL_KEYUP          , SDL_IGNORE);
+    printf("SDL_EventState\n");
+    
     SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
     SDL_EventState(SDL_MOUSEBUTTONUP  , SDL_IGNORE);
-    SDL_EventState(SDL_KEYUP          , SDL_IGNORE);
     SDL_EventState(SDL_MOUSEMOTION    , SDL_IGNORE);
+
+    /* Ignore key events */
+    SDL_EventState(SDL_KEYDOWN, SDL_IGNORE);
+    SDL_EventState(SDL_KEYUP, SDL_IGNORE);
 
     // Ignore window events for now
     SDL_EventState(SDL_WINDOWEVENT, SDL_IGNORE);
 
-    keys = SDL_GetKeyboardState(0);
-
     // SDL thread synchronization
-
-    fail_if(!(event_lock = SDL_CreateMutex()),
-      "failed to create event mutex: %s", SDL_GetError());
-
-    fail_if(!(frame_lock = SDL_CreateMutex()),
-      "failed to create frame mutex: %s", SDL_GetError());
-    fail_if(!(frame_available_cond = SDL_CreateCond()),
-      "failed to create frame condition variable: %s", SDL_GetError());
+    printf("SDL_CreateMutex\n");
+    if(!(event_lock = SDL_CreateMutex())) {
+        printf("failed to create event mutex: %s", SDL_GetError());
+        exit(1);
+    }
+    if(!(frame_lock = SDL_CreateMutex())) {
+        printf("failed to create frame mutex: %s", SDL_GetError());
+        exit(1);
+    }
+   
+    printf("SDL_CreateCond()\n");
+    if(!(frame_available_cond = SDL_CreateCond())) {
+        printf("failed to create frame condition variable: %s", SDL_GetError());
+        exit(1);
+    }
 }
 
 void deinit_sdl() {
+    puts("Shutting down NESalizer!");
+    puts("-------------------------------------------------------");
     SDL_DestroyRenderer(renderer); // Also destroys the texture
     SDL_DestroyWindow(screen);
-
     SDL_DestroyMutex(event_lock);
-
     SDL_DestroyMutex(frame_lock);
     SDL_DestroyCond(frame_available_cond);
-
     SDL_CloseAudioDevice(audio_device_id); // Prolly not needed, but play it safe
+    SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
     SDL_Quit();
 }

@@ -3,6 +3,7 @@
 #include "mapper.h"
 #include "rom.h"
 #include "timing.h"
+#include <SDL2/SDL.h>
 
 double cpu_clock_rate;
 double ppu_clock_rate;
@@ -31,24 +32,9 @@ void init_timing_for_rom() {
 // Used for main loop synchronization
 static timespec clock_previous;
 
-static void add_to_timespec(timespec &ts, long nano_secs) {
-    long const new_nanos = ts.tv_nsec + nano_secs;
-    ts.tv_sec += new_nanos/1000000000l;
-    ts.tv_nsec = new_nanos%1000000000l;
-}
-
 void init_timing() {
-    errno_fail_if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1,
-      "failed to fetch initial synchronization timestamp from clock_gettime()");
-}
-
-void sleep_till_end_of_frame() {
-    add_to_timespec(clock_previous, 1e9/ppu_fps);
-again:
-    int const res =
-      clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &clock_previous, 0);
-    if (res == EINTR) goto again;
-    errno_val_fail_if(res != 0, res, "failed to sleep with clock_nanosleep()");
-    errno_fail_if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1,
-      "failed to fetch synchronization timestamp from clock_gettime()");
+    if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1) {
+        printf("failed to fetch initial synchronization timestamp from clock_gettime()");
+        exit(1);
+    }
 }
