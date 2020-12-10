@@ -10,9 +10,9 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 	source "${MARVELL_SDK_PATH}/setenv.sh" || exit 1
 fi
 cd "${TOP}"
-echo "Cleaning BuildDir.."
+echo "Cleaning Build Directory.."
 make clean
-echo "Building..."
-make $MAKE_J V=1 || exit 2
+echo "Building NESalizer..."
+make $MAKE_J || exit 2
 mv build/nesalizer .
-echo "Build complete!"
+echo "Build Complete!"
