@@ -4,6 +4,7 @@
 
 // Current CPU read/write state. Needed to get the timing for APU DMC sample
 // loading right (tested by the sprdma_and_dmc_dma tests).
+
 extern bool cpu_is_reading;
 
 extern bool running_state;

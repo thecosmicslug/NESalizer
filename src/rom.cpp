@@ -6,6 +6,8 @@
 #include "md5.h"
 #include "ppu.h"
 #include "rom.h"
+#include "cpu.h"
+
 #include "save_states.h"
 #include "timing.h"
 
@@ -47,20 +49,19 @@ char const *const mirroring_to_str[N_MIRRORING_MODES] =
 static void do_rom_specific_overrides();
 
 void reload_rom() {
-    load_rom(fname, false);
+    load_rom(fname);
 }
 
-void load_rom(char const *filename, bool print_info) {
+void load_rom(char const *filename) {
+    
     fname = filename;
-    #define PRINT_INFO(...) do { if (print_info) printf(__VA_ARGS__); } while(0)
-
-    printf("Loading ROM '%s' - ", filename);
+    printf("Loading ROM - '%s'\n", filename);
 
     size_t rom_buf_size;
     rom_buf = get_file_buffer(filename, rom_buf_size);
 
     is_pal = strstr(filename, "(E)") || strstr(filename, "PAL");
-    PRINT_INFO("guessing %s based on filename alone\n", is_pal ? "PAL" : "NTSC");
+    printf("guessing %s based on filename alone\n", is_pal ? "PAL" : "NTSC");
 
     if(rom_buf_size < 16) {
         printf("'%s' is too short to be a valid iNES file (is %zu bytes - not even enough to hold the 16-byte "
@@ -75,7 +76,7 @@ void load_rom(char const *filename, bool print_info) {
 
     prg_16k_banks = rom_buf[4];
     chr_8k_banks  = rom_buf[5];
-    PRINT_INFO("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
+    printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
 
     if(prg_16k_banks == 0) { // TODO: This makes sense for NES 2.0
         printf("the iNES header specifies zero banks of PRG ROM (program storage), which makes no sense");
@@ -94,51 +95,44 @@ void load_rom(char const *filename, bool print_info) {
         exit(1);
     }
 
-    unsigned mapper;
-
     // Possibly updated with the high nibble below
+    unsigned mapper;
     mapper = rom_buf[6] >> 4;
 
     bool const is_nes_2_0 = (rom_buf[7] & 0x0C) == 0x08;
-    PRINT_INFO(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
+    printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
     // Assume we're dealing with a corrupted header (e.g. one containing
     // "DiskDude!" in bytes 7-15) if the ROM is not in NES 2.0 format and bytes
     // 12-15 are not all zero
     if (!is_nes_2_0 && !MEM_EQ(rom_buf + 12, "\0\0\0\0"))
-        PRINT_INFO("header looks corrupted (bytes 12-15 not all zero) - ignoring byte 7\n");
+        printf("header looks corrupted (bytes 12-15 not all zero) - ignoring byte 7\n");
     else {
         is_vs_unisystem  = rom_buf[7] & 1;
         is_playchoice_10 = rom_buf[7] & 2;
         mapper |= (rom_buf[7] & 0xF0);
     }
 
-    PRINT_INFO("mapper: %u\n", mapper);
+    printf("mapper: %u\n", mapper);
 
     if (rom_buf[6] & 8)
-        // The cart contains 2 KB of additional CIRAM (nametable memory) and uses
-        // four-screen (linear) addressing
+        // The cart contains 2 KB of additional CIRAM (nametable memory) and uses four-screen (linear) addressing
         mirroring = FOUR_SCREEN;
     else
         mirroring = rom_buf[6] & 1 ? VERTICAL : HORIZONTAL;
 
-    if ((has_battery = rom_buf[6] & 2)) PRINT_INFO("has battery\n");
-    if ((has_trainer = rom_buf[6] & 4)) PRINT_INFO("has trainer\n");
+    if ((has_battery = rom_buf[6] & 2)) printf("has battery\n");
+    if ((has_trainer = rom_buf[6] & 4)) printf("has trainer\n");
 
-    //
     // Set pointers, allocate memory areas, and do misc. setup
-    //
-
     prg_base = rom_buf + 16 + 512*has_trainer;
 
     // Default
     has_bus_conflicts = false;
-
     do_rom_specific_overrides();
 
     // Needs to come after a possible override
     prerender_line = is_pal ? 311 : 261;
-
-    PRINT_INFO("mirroring: %s\n", mirroring_to_str[mirroring]);
+    printf("mirroring: %s\n", mirroring_to_str[mirroring]);
 
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
         printf("failed to allocate %u bytes of nametable memory", mirroring == FOUR_SCREEN ? 0x1000 : 0x800);
@@ -171,7 +165,6 @@ void load_rom(char const *filename, bool print_info) {
     }
     else chr_base = prg_base + 16*1024*prg_16k_banks;
 
-    #undef PRINT_INFO
 
     if(is_nes_2_0) {
         printf("NES 2.0 not yet supported");
@@ -196,6 +189,7 @@ void load_rom(char const *filename, bool print_info) {
     init_save_states_for_rom();
 
     set_rom_loaded(true);
+    printf("ROM '%s' Loaded Successfully.\n", filename);
 }
 
 void unload_rom() {

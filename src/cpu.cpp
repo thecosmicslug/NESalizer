@@ -32,7 +32,7 @@ static bool pending_event;
 static bool pending_end_emulation;
 static bool pending_frame_completion;
 static bool pending_reset;
-bool running_state = true;
+bool running_state = false;
 
 void end_emulation() { pending_event = pending_end_emulation = true; }
 void frame_completed() { pending_event = pending_frame_completion = true; }
@@ -940,8 +940,6 @@ void run()
     set_apu_cold_boot_state();
     set_cpu_cold_boot_state();
     set_ppu_cold_boot_state();
-
-    init_timing();
 
     do_interrupt(Int_reset);
 

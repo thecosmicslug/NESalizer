@@ -38,47 +38,47 @@ uint8_t *get_file_buffer(char const *filename, size_t &size_out) {
     // We do not support large files on 32-bit systems
 
     if(!(file = fopen(filename, "rb"))) {
-        printf("failed to open '%s'", filename);
+        printf("failed to open '%s'\n", filename);
         exit(1);
     }
 
     if(fseek(file, 0, SEEK_END) == -1) {
-        printf("failed to seek to end of '%s'", filename);
+        printf("failed to seek to end of '%s'\n", filename);
         exit(1);
     }
 
     if((file_size = ftell(file)) == -1) {
-        printf("failed to get size of '%s'", filename);
+        printf("failed to get size of '%s'\n", filename);
         exit(1);
     }
 
     if(fseek(file, 0, SEEK_SET) == -1) {
-        printf("failed to seek back to beginning of '%s'", filename);
+        printf("failed to seek back to beginning of '%s'\n", filename);
         exit(1);
     }
 
     if(!(file_buf = new (std::nothrow) unsigned char[file_size])) {
-        printf("failed to allocate %ld-byte buffer for '%s'", file_size, filename);
+        printf("failed to allocate %ld-byte buffer for '%s'\n", file_size, filename);
         exit(1);
     }
 
     size_t const fread_res = fread(file_buf, 1, file_size, file);
     if ((unsigned long long)fread_res < (unsigned long long)file_size) {
         if(feof(file)) {
-            printf("unexpected end of file while reading '%s'", filename);
+            printf("unexpected end of file while reading '%s'\n", filename);
             exit(1);
         }
         if(ferror(file)) {
-            printf("I/O error while reading '%s'", filename);
+            printf("I/O error while reading '%s'\n", filename);
             exit(1);
         }
         else {
-            printf("unknown error while reading '%s'", filename);
+            printf("unknown error while reading '%s'\n", filename);
             exit(1);
         }
     }
     if(fclose(file) == EOF) {
-        printf("failed to close '%s'", filename);
+        printf("failed to close '%s'\n", filename);
         exit(1);
     }
 
@@ -115,4 +115,59 @@ void errno_fail(int errno_val, char const *format, ...) {
     va_start(args, format);
     errno = errno_val;
     fail_helper(true, format, args);
+}
+
+//
+// Backtrace printing on receiving fatal signals
+//
+
+static void fatal_signal_handler(int sig) {
+    // Use non-async-signal-safe functions. Likely to work in practice.
+    printf("Fatal signal caught\n");
+    exit(1);
+
+    /*static void *backtrace_buffer[100];
+    static char addr2line_cmd_buf[100];
+
+    fprintf(stderr, "caught fatal signal '%s'. Backtrace:\n\n", strsignal(sig));
+
+    int const n = backtrace(backtrace_buffer, ARRAY_LEN(backtrace_buffer));
+
+    // Print a basic backtrace w/o debug information. If automatic addr2line
+    // translation fails, we can invoke it manually using the returned
+    // addresses to get line numbers.
+
+    backtrace_symbols_fd(backtrace_buffer, n, 2);
+
+    fputs("\nattempting to get line numbers with addr2line:\n\n", stderr);
+
+    sprintf(addr2line_cmd_buf, "addr2line -Cfip -e '%s'", program_name);
+    FILE *const f = popen(addr2line_cmd_buf, "w");
+    if (!f) {
+        fputs("failed to run addr2line\n", stderr);
+        abort();
+    }
+
+    for (int i = 0; i < n; ++i)
+        if (fprintf(f, "%p\n", backtrace_buffer[i]) < 0) {
+            fputs("failed to write address to addr2line\n", stderr);
+            abort();
+        }
+
+    abort();*/
+}
+
+static void install_fatal_signal_handler(int sig) {
+    /* struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = 0;
+    sa.sa_handler = fatal_signal_handler;
+    fail_if(sigaction(sig, &sa, 0) == -1,
+            "failed to install handler for signal '%s'", strsignal(sig)); */
+}
+
+void install_fatal_signal_handlers() {
+    install_fatal_signal_handler(SIGBUS);
+    install_fatal_signal_handler(SIGILL);
+    install_fatal_signal_handler(SIGSEGV);
 }

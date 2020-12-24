@@ -3,6 +3,7 @@
 // http://wiki.nesdev.com/w/index.php/APU
 
 // Emulates a DMA transfer of sprite data to the PPU
+
 void do_oam_dma(uint8_t addr);
 
 // Invalidates the cached signal level as outlined in set_audio_signal_level()

@@ -1,3 +1,6 @@
 /build/
-/.vscode/
 nesalizer
+nesalizer.log
+.gdbinit
+Zelda(E).nes
+Mario(E).nes

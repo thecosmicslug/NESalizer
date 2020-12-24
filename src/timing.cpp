@@ -3,7 +3,6 @@
 #include "mapper.h"
 #include "rom.h"
 #include "timing.h"
-#include <SDL2/SDL.h>
 
 double cpu_clock_rate;
 double ppu_clock_rate;
@@ -21,20 +20,5 @@ void init_timing_for_rom() {
         cpu_clock_rate           = master_clock_rate/12.0; // ~1.79 MHz
         ppu_clock_rate           = master_clock_rate/4.0; // ~5.37 MHz
         ppu_fps                  = ppu_clock_rate/(341*261 + 340.5); // ~60.1 FPS
-    }
-}
-
-// TODO: Use SDL_Delay() instead? Higher sleep precision is good for audio
-// buffer management, but that needs to be quantified, and whether
-// clock_nanosleep() gives a noticeable precision improvement depends on OS
-// scheduling.
-
-// Used for main loop synchronization
-static timespec clock_previous;
-
-void init_timing() {
-    if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1) {
-        printf("failed to fetch initial synchronization timestamp from clock_gettime()");
-        exit(1);
     }
 }

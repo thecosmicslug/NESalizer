@@ -174,3 +174,5 @@ void errno_fail(int errno_val, char const *format, ...)
     if (condition)                                   \
         errno_fail(errno_val, __VA_ARGS__);
 
+// Installs a handler that prints a backtrace for some fatal signals
+void install_fatal_signal_handlers();

@@ -4,9 +4,10 @@ NESalizer for the Steam Link by TheCosmicSlug
 
 A NES emulator using SDL2 originally written by 'ulfalizer' ported to the Steam Link. 
 More of a Diet-Nesalizer, as alot of cool features suchh as rewind, movie recording and a built-in debugger were removed to allow it to run on the limited hardware of the Steamlink.
-The input system has been re-done, hard-coded keyboard removed and Gamepad support has been added. in-memory save-states are working but I am still trying to work out how to save/load them from disk.
+The input system has been re-done, hard-coded keyboard removed and Gamepad support has been added. in-memory save-states are working in memory only.
 
-Right now I am teaching myself about creating a basic interface with ImGUI, to allow ROM selection & a configuration window.
+Having finally added a method to load ROMs at runtime, I am now looking into expanding that with configurable inputs and disk savestates.
+I would also like to try and re-add Ulf's original rewind-code now that the emulator is running at proper speed.
 
 ## Thanks ##
  * ulfalizer for the original sdl version
@@ -26,10 +27,11 @@ git clone https://github.com/ValveSoftware/steamlink-sdk
 cd steamlink-sdk/examples
 git clone https://github.com/thecosmicslug/NESalizer
 cd nesalizer
-./build_steamlink.sh
-
+./build_nesalizer.sh
+ 
 ## Running ##
- Right now it simply loads "Mario(E).nes" from the current folder unless you provide a filename.
+ImGUI Support has been added, allowing for a File Open Dialog for selecting ROMs. Simply press the leftthumbstick in and the Dialog will show.
+a ROM can still be provided as program argument to load on startup.
 
 ## Controls ##
 

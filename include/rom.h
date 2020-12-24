@@ -26,9 +26,8 @@ extern bool has_bus_conflicts;
 
 extern Mapper_fns mapper_fns;
 
-// Loads a ROM file. If 'print_info' is true, information about the cart is
-// printed to stdout.
-void load_rom(char const *filename, bool print_info);
+// Loads a ROM file.
+void load_rom(char const *filename);
 
 // Reloads rom saved from last load
 void reload_rom();
