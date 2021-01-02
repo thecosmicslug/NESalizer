@@ -21,7 +21,7 @@ bool chr_is_ram;
 uint8_t *wram_base;
 unsigned wram_8k_banks;
 
-char const *fname;
+const char *fname;
 
 bool is_pal;
 
@@ -52,9 +52,8 @@ void reload_rom() {
     load_rom(fname);
 }
 
-void load_rom(char const *filename) {
-    
-    fname = filename;
+bool load_rom(const char *filename) {
+
     printf("Loading ROM - '%s'\n", filename);
 
     size_t rom_buf_size;
@@ -66,25 +65,25 @@ void load_rom(char const *filename) {
     if(rom_buf_size < 16) {
         printf("'%s' is too short to be a valid iNES file (is %zu bytes - not even enough to hold the 16-byte "
         "header)", filename, rom_buf_size);
-        exit(1);
+        return false;
     }
 
     if(!MEM_EQ(rom_buf, "NES\x1A")) {
         printf("'%s' does not start with the expected byte sequence 'N', 'E', 'S', 0x1A", filename);
-        exit(1);
+        return false;
     }
 
     prg_16k_banks = rom_buf[4];
     chr_8k_banks  = rom_buf[5];
     printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
 
-    if(prg_16k_banks == 0) { // TODO: This makes sense for NES 2.0
+    if(prg_16k_banks == 0) { //* TODO: This makes sense for NES 2.0
         printf("the iNES header specifies zero banks of PRG ROM (program storage), which makes no sense");
-        exit(1);
+        return false;
     }
     if(!is_pow_2_or_0(prg_16k_banks) || !is_pow_2_or_0(chr_8k_banks)) {
         printf("non-power-of-two PRG and CHR sizes are not supported yet");
-        exit(1);
+        return false;
     }
 
     size_t const min_size = 16 + 512*has_trainer + 0x4000*prg_16k_banks + 0x2000*chr_8k_banks;
@@ -92,18 +91,18 @@ void load_rom(char const *filename) {
         printf("'%s' is too short to hold the specified amount of PRG (program data) and CHR (graphics data) "
             "ROM - is %zu bytes, expected at least %zu bytes (16 (header) + %s%u*16384 (PRG) + %u*8192 (CHR))",
             filename, rom_buf_size, min_size, has_trainer ? "512 (trainer) + " : "", prg_16k_banks, chr_8k_banks);
-        exit(1);
+        return false;
     }
 
-    // Possibly updated with the high nibble below
+    //* Possibly updated with the high nibble below
     unsigned mapper;
     mapper = rom_buf[6] >> 4;
 
     bool const is_nes_2_0 = (rom_buf[7] & 0x0C) == 0x08;
     printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
-    // Assume we're dealing with a corrupted header (e.g. one containing
-    // "DiskDude!" in bytes 7-15) if the ROM is not in NES 2.0 format and bytes
-    // 12-15 are not all zero
+    //* Assume we're dealing with a corrupted header (e.g. one containing
+    //* "DiskDude!" in bytes 7-15) if the ROM is not in NES 2.0 format and bytes
+    //* 12-15 are not all zero
     if (!is_nes_2_0 && !MEM_EQ(rom_buf + 12, "\0\0\0\0"))
         printf("header looks corrupted (bytes 12-15 not all zero) - ignoring byte 7\n");
     else {
@@ -115,7 +114,7 @@ void load_rom(char const *filename) {
     printf("mapper: %u\n", mapper);
 
     if (rom_buf[6] & 8)
-        // The cart contains 2 KB of additional CIRAM (nametable memory) and uses four-screen (linear) addressing
+        //* The cart contains 2 KB of additional CIRAM (nametable memory) and uses four-screen (linear) addressing
         mirroring = FOUR_SCREEN;
     else
         mirroring = rom_buf[6] & 1 ? VERTICAL : HORIZONTAL;
@@ -123,44 +122,44 @@ void load_rom(char const *filename) {
     if ((has_battery = rom_buf[6] & 2)) printf("has battery\n");
     if ((has_trainer = rom_buf[6] & 4)) printf("has trainer\n");
 
-    // Set pointers, allocate memory areas, and do misc. setup
+    //* Set pointers, allocate memory areas, and do misc. setup
     prg_base = rom_buf + 16 + 512*has_trainer;
 
-    // Default
+    //* Default
     has_bus_conflicts = false;
     do_rom_specific_overrides();
 
-    // Needs to come after a possible override
+    //* Needs to come after a possible override
     prerender_line = is_pal ? 311 : 261;
     printf("mirroring: %s\n", mirroring_to_str[mirroring]);
 
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
         printf("failed to allocate %u bytes of nametable memory", mirroring == FOUR_SCREEN ? 0x1000 : 0x800);
-        exit(1);
+        return false;
     }
 
     if (mirroring == FOUR_SCREEN || mapper == 7)
-        // Assume no WRAM when four-screen, per
-        // http://wiki.nesdev.com/w/index.php/INES_Mapper_004. Also assume no
-        // WRAM for AxROM (mapper 7) as having it breaks Battletoads & Double
-        // Dragon. No AxROM games use WRAM.
+        //* Assume no WRAM when four-screen, per
+        //* http://*wiki.nesdev.com/w/index.php/INES_Mapper_004. Also assume no
+        //* WRAM for AxROM (mapper 7) as having it breaks Battletoads & Double
+        //* Dragon. No AxROM games use WRAM.
         wram_base = wram_6000_page = NULL;
     else {
-        // iNES assumes all carts have 8 KB of WRAM. For MMC5, assume the cart
-        // has 64 KB.
+        //* iNES assumes all carts have 8 KB of WRAM. For MMC5, assume the cart
+        //* has 64 KB.
         wram_8k_banks = (mapper == 5) ? 8 : 1;
         if(!(wram_6000_page = wram_base = alloc_array_init<uint8_t>(0x2000*wram_8k_banks, 0xFF))) {
             printf("failed to allocate %u KB of WRAM", 8*wram_8k_banks);
-            exit(1);
+            return false;
         }
     }
 
     if ((chr_is_ram = (chr_8k_banks == 0))) {
-        // Assume cart has 8 KB of CHR RAM, except for Videomation which has 16 KB
+        //* Assume cart has 8 KB of CHR RAM, except for Videomation which has 16 KB
         chr_8k_banks = (mapper == 13) ? 2 : 1;
         if(!(chr_base = alloc_array_init<uint8_t>(0x2000*chr_8k_banks, 0xFF))) {
             printf("failed to allocate %u KB of CHR RAM", 8*chr_8k_banks);
-            exit(1);
+            return false;
         }
     }
     else chr_base = prg_base + 16*1024*prg_16k_banks;
@@ -168,19 +167,19 @@ void load_rom(char const *filename) {
 
     if(is_nes_2_0) {
         printf("NES 2.0 not yet supported");
-        exit(1);
+        return false;
     }
 
     if(!mapper_fns_table[mapper].init) {
         printf("mapper %u not supported\n", mapper);
-        exit(1);
+        return false;
     }
 
     mapper_fns = mapper_fns_table[mapper];
     mapper_fns.init();
 
-    // Needs to come first, as it sets NTSC/PAL timing parameters used by some
-    // of the other initialization functions
+    //* Needs to come first, as it sets NTSC/PAL timing parameters used by some
+    //* of the other initialization functions
     init_timing_for_rom();
 
     init_apu_for_rom();
@@ -188,12 +187,14 @@ void load_rom(char const *filename) {
     init_ppu_for_rom();
     init_save_states_for_rom();
 
+    fname = filename;
     set_rom_loaded(true);
     printf("ROM '%s' Loaded Successfully.\n", filename);
+    return true;
 }
 
 void unload_rom() {
-    // Flush any pending audio samples
+    //* Flush any pending audio samples
     end_audio_frame();
 
     free_array_set_null(rom_buf);
@@ -207,8 +208,8 @@ void unload_rom() {
     set_rom_loaded(false);
 }
 
-// ROM detection from a PRG MD5 digest. Needed to infer and correct information
-// for some ROMs.
+//* ROM detection from a PRG MD5 digest. Needed to infer and correct information
+//* for some ROMs.
 
 static void correct_mirroring(Mirroring m) {
     if (mirroring != m) {
@@ -243,18 +244,23 @@ static void do_rom_specific_overrides() {
 #endif
 
     if (MEM_EQ(md5, "\xAC\x5F\x53\x53\x59\x87\x58\x45\xBC\xBD\x1B\x6F\x31\x30\x7D\xEC"))
-        // Cybernoid
+        //* Cybernoid
         enable_bus_conflicts();
     else if (MEM_EQ(md5, "\x60\xC6\x21\xF5\xB5\x09\xD4\x14\xBB\x4A\xFB\x9B\x56\x95\xC0\x73"))
-        // High hopes
+        //* High hopes
         set_pal();
     else if (MEM_EQ(md5, "\x44\x6F\xCD\x30\x75\x61\x00\xA9\x94\x35\x9A\xD4\xC5\xF8\x76\x67"))
-        // Rad Racer 2
+        //* Rad Racer 2
         correct_mirroring(FOUR_SCREEN);
 }
 
 bool is_rom_loaded() {
     return rom_loaded;
+}
+
+const char* rom_filename() {
+    
+    return fname;
 }
 
 void set_rom_loaded(bool loaded) {

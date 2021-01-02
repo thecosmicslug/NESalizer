@@ -1,38 +1,40 @@
 #pragma once
-// Loading and unloading of ROM files
+//* Loading and unloading of ROM files
 
-// Points to the start of the PRG data within the ROM image
+//* Points to the start of the PRG data within the ROM image
 extern uint8_t *prg_base;
 extern unsigned prg_16k_banks;
 
-// Points to the start of the CHR data within the ROM image, or to a
-// dynamically allocated buffer if the cart uses RAM for CHR
+//* Points to the start of the CHR data within the ROM image, or to a
+//* dynamically allocated buffer if the cart uses RAM for CHR
 extern uint8_t *chr_base;
 extern unsigned chr_8k_banks;
 extern bool chr_is_ram;
 
-// Points to a dynamically allocated buffer for SRAM/WRAM. We usually have to
-// assume the cart has SRAM/WRAM due to iNES ickiness.
+//* Points to a dynamically allocated buffer for SRAM/WRAM. We usually have to
+//* assume the cart has SRAM/WRAM due to iNES ickiness.
 extern uint8_t *wram_base;
 extern unsigned wram_8k_banks;
 
-// True if this is a PAL ROM
+//* True if this is a PAL ROM
 extern bool is_pal;
+extern const char *fname;
 
-// If true, the mapper has bus conflicts and does not shut off ROM output for
-// writes to the $8000+ range. This results in an AND between the written value
-// and the value in ROM. Cybernoid depends on this being emulated.
+
+//* If true, the mapper has bus conflicts and does not shut off ROM output for
+//* writes to the $8000+ range. This results in an AND between the written value
+//* and the value in ROM. Cybernoid depends on this being emulated.
 extern bool has_bus_conflicts;
 
 extern Mapper_fns mapper_fns;
 
-// Loads a ROM file.
-void load_rom(char const *filename);
+//* Loads a ROM file.
+bool load_rom(const char *filename);
 
-// Reloads rom saved from last load
+//* Reloads rom saved from last load
 void reload_rom();
 
-// Frees resources associated with the ROM
+//* Frees resources associated with the ROM
 void unload_rom();
 
 bool is_rom_loaded();

@@ -8,6 +8,7 @@
 #include "rom.h"
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
+
 char const *program_name;
 
 
@@ -25,31 +26,41 @@ int main(int argc, char *argv[]) {
         sdl_compiled_version.major, sdl_compiled_version.minor, sdl_compiled_version.patch,
            sdl_linked_version.major, sdl_linked_version.minor, sdl_linked_version.patch);
 
-    // Setup Audio/Video Outputs with SDL & ImGUI
+    //* Setup Audio/Video Outputs with SDL & ImGUI
     init_sdl();
     SDL_ShowCursor(SDL_DISABLE);
     
     init_apu();
     init_mappers();
     
-    // Check for a ROM Filename as supplied argument 
+    //* Check for a ROM Filename as supplied argument 
     program_name = argv[0] ? argv[0] : "nesalizer";
     if (argc != 2) {
+        //* No ROM supplied, Select from file dialog
         bShowGUI=true;
     }else{
-        load_rom(argv[1]);    
+        if(load_rom(argv[1])){
+            GUI::SetROMStateFilename();
+            std::string tmpstr = "ROM  '";
+            tmpstr  += basename(fname);
+            tmpstr  += "'  Loaded!";
+            GUI::ShowTextOverlay(tmpstr);
+        }else{
+            bShowGUI=true;
+        };
+           
     }
    
     while (true)
     {
         if (bShowGUI)
         {
-            // Our ImGUI File Dialog
+            //* Our ImGUI File Dialog
             process_events();
             GUI::render();
         
         }else{
-            // Run Emulation!
+            //* Run Emulation!
             GUI::main_run();
         }
     }

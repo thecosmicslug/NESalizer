@@ -1,9 +1,9 @@
 #include "common.h"
 #include <signal.h>
 
-//
-// General utility functions
-//
+//*
+//* General utility functions
+//*
 
 bool is_pow_2_or_0(unsigned n) {
     return !(n & (n - 1));
@@ -31,11 +31,10 @@ uint8_t rev_byte(uint8_t n) {
 }
 
 uint8_t *get_file_buffer(char const *filename, size_t &size_out) {
+    
     FILE *file;
     uint8_t *file_buf;
     long file_size;
-
-    // We do not support large files on 32-bit systems
 
     if(!(file = fopen(filename, "rb"))) {
         printf("failed to open '%s'\n", filename);
@@ -86,9 +85,9 @@ uint8_t *get_file_buffer(char const *filename, size_t &size_out) {
     return file_buf;
 }
 
-//
-// Error reporting
-//
+//*
+//* Error reporting
+//*
 
 static void fail_helper(bool include_errno, char const *format, va_list args)
   __attribute__((format(printf, 2, 0), noreturn));
@@ -117,12 +116,12 @@ void errno_fail(int errno_val, char const *format, ...) {
     fail_helper(true, format, args);
 }
 
-//
-// Backtrace printing on receiving fatal signals
-//
+//*
+//* Backtrace printing on receiving fatal signals
+//*
 
 static void fatal_signal_handler(int sig) {
-    // Use non-async-signal-safe functions. Likely to work in practice.
+    //* Use non-async-signal-safe functions. Likely to work in practice.
     printf("Fatal signal caught\n");
     exit(1);
 
@@ -133,9 +132,9 @@ static void fatal_signal_handler(int sig) {
 
     int const n = backtrace(backtrace_buffer, ARRAY_LEN(backtrace_buffer));
 
-    // Print a basic backtrace w/o debug information. If automatic addr2line
-    // translation fails, we can invoke it manually using the returned
-    // addresses to get line numbers.
+    //* Print a basic backtrace w/o debug information. If automatic addr2line
+    //* translation fails, we can invoke it manually using the returned
+    //* addresses to get line numbers.
 
     backtrace_symbols_fd(backtrace_buffer, n, 2);
 

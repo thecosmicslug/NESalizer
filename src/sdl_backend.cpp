@@ -1,8 +1,5 @@
-#include <string>
-#include <iostream>
-
 #include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+#include <SDL_ttf.h>
 
 #include "common.h"
 #include "audio.h"
@@ -30,9 +27,13 @@ SDL_mutex   *event_lock;
 
 static SDL_AudioDeviceID audio_device_id;
 
-// Framerate control:
+//* Framerate control:
 const int FPS = 60;
 const int DELAY = 100.0f / FPS;
+
+//* Onscreen Text Overlay
+TTF_Font *overlay_font;
+SDL_Color overlay_color = {255,255,0}; //* YELLOW
 
 struct Controller_t
 {
@@ -71,11 +72,11 @@ void draw_frame() {
         swap(back_buffer, front_buffer);
         SDL_CondSignal(frame_available_cond);
     } else {
-        //printf("dropping frame\n");
+        //* printf("dropping frame\n");
     }
 
     SDL_UnlockMutex(frame_lock);
-    // Wait to mantain framerate:
+    //* Wait to mantain framerate:
     frameTime = SDL_GetTicks() - frameStart;
     if (frameTime < DELAY) {
         SDL_Delay((int)(DELAY - frameTime));
@@ -85,29 +86,6 @@ void draw_frame() {
 static void audio_callback(void*, Uint8 *stream, int len) {
     assert(len >= 0);
     read_samples((int16_t*)stream, len/sizeof(int16_t));
-}
-
-bool saveScreenshot(const std::string &file, SDL_Renderer *renderer ) {
-  SDL_Rect _viewport;
-  SDL_Surface *_surface = NULL;
-  SDL_RenderGetViewport( renderer, &_viewport);
-  _surface = SDL_CreateRGBSurface( 0, _viewport.w, _viewport.h, 32, 0, 0, 0, 0 );
-  if ( _surface == NULL ) {
-    std::cout << "Cannot create SDL_Surface: " << SDL_GetError() << std::endl;
-    return false;
-   }
-  if ( SDL_RenderReadPixels( renderer, NULL, _surface->format->format, _surface->pixels, _surface->pitch ) != 0 ) {
-    std::cout << "Cannot read data from SDL_Renderer: " << SDL_GetError() << std::endl;
-    SDL_FreeSurface(_surface);
-    return false;
-  }
-  if ( IMG_SavePNG( _surface, file.c_str() ) != 0 ) {
-    std::cout << "Cannot save PNG file: " << SDL_GetError() << std::endl;
-    SDL_FreeSurface(_surface);
-    return false;
-  }
-  SDL_FreeSurface(_surface);
-  return true;
 }
 
 static void add_controller( int device_index)
@@ -185,9 +163,11 @@ extern void process_events() {
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 add_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Connected!");
                 break;
             case SDL_CONTROLLERDEVICEREMOVED:
                 remove_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Removed!");
                 break;
             case SDL_CONTROLLERBUTTONDOWN:
                 int controller_index_down;
@@ -204,6 +184,36 @@ extern void process_events() {
                     case  SDL_CONTROLLER_BUTTON_B:
                         if (!bShowGUI){
                             set_button_state(controller_index_down,1);
+                        }
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_X:
+                        if (!bShowGUI){
+                            //* Change Saveslot Minus 1 
+                            if (statenum == 0){
+                                statenum = 9;
+                            }else{
+                                statenum = statenum - 1;
+                            }
+                            std::string tmpstr = "Save-State Slot '";
+                            tmpstr += std::to_string(statenum);
+                            tmpstr += "' Activated.";
+                            GUI::SetROMStateFilename();
+                            GUI::ShowTextOverlay(tmpstr);
+                        }
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_Y:
+                        if (!bShowGUI){
+                            //* Change Saveslot Plus 1 
+                            if (statenum == 9){
+                                statenum = 0;
+                            }else{
+                                statenum = statenum + 1;
+                            }
+                            std::string tmpstr = "Save-State Slot '";
+                            tmpstr += std::to_string(statenum);
+                            tmpstr += "' Activated.";
+                            GUI::SetROMStateFilename();
+                            GUI::ShowTextOverlay(tmpstr);
                         }
                         break;
                     case  SDL_CONTROLLER_BUTTON_BACK:
@@ -238,14 +248,14 @@ extern void process_events() {
                         break;
                     case  SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
                         if (!bShowGUI){
-                            // Load Save-state
+                            //* Load State
                             printf("user called load_state()\n");
                             load_state();
                         }
                         break;
                     case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
                         if (!bShowGUI){
-                            // Save State
+                            //* Save State
                             printf("user called save_state()\n");
                             save_state();
                         }
@@ -260,7 +270,7 @@ extern void process_events() {
                         }
                         break;     
                     case  SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-                        // Exit NESalizer!
+                        //* Exit NESalizer!
                         printf("User quit!\n");
                         end_emulation();
                         exit_sdl_thread();
@@ -331,10 +341,12 @@ extern void process_events() {
 
 void sdl_thread() {
     printf("Entering sdl_thread\n");
+    int texW = 0; //* for the overlay
+    int texH = 0;
     SDL_UnlockMutex(frame_lock);
     for(;;) {
-        // Wait for the emulation thread to signal that a frame has completed
-        SDL_LockMutex(frame_lock);         // KevRoot's port commented this out
+        //* Wait for the emulation thread to signal that a frame has completed
+        SDL_LockMutex(frame_lock);         //* KevRoot's port commented this out
         ready_to_draw_new_frame = true;
         while (!frame_available && !pending_sdl_thread_exit)
             SDL_CondWait(frame_available_cond, frame_lock);
@@ -344,9 +356,9 @@ void sdl_thread() {
             return;
         }
         frame_available = ready_to_draw_new_frame = false;
-        SDL_UnlockMutex(frame_lock);        // KevRoot's port commented this out
+        SDL_UnlockMutex(frame_lock);        //* KevRoot's port commented this out
         process_events();
-        // Draw the new frame
+        //* Draw the new frame
         if(SDL_UpdateTexture(screen_tex, 0, front_buffer, 256*sizeof(Uint32))) {
             printf("failed to update screen texture: %s", SDL_GetError());
             exit(1);
@@ -355,6 +367,28 @@ void sdl_thread() {
             printf("failed to copy rendered frame to render target: %s", SDL_GetError());
             exit(1);
         }
+        //* Check if we need to show a message onscreen
+        if (bShowOverlayText){
+            unsigned int CurrentTickCount;
+            CurrentTickCount = SDL_GetTicks();
+            if(CurrentTickCount - OverlayTickCount < 2500) //* 2.5secs
+            {
+                //* Show the overlay
+                SDL_Surface * overlay_surface = TTF_RenderText_Blended(overlay_font, TextOverlayMSG.c_str(), overlay_color);
+                SDL_Texture * overlay_texture = SDL_CreateTextureFromSurface(renderer, overlay_surface);
+                SDL_QueryTexture(overlay_texture, NULL, NULL, &texW, &texH);
+                SDL_Rect dstrect = { 10, 10, texW, texH };
+                SDL_RenderCopy(renderer, overlay_texture, NULL, &dstrect);
+                SDL_DestroyTexture(overlay_texture);
+                SDL_FreeSurface(overlay_surface);
+            }else
+            {
+                //* Disable the overlay now 
+                bShowOverlayText=false;
+            }
+            
+            
+        } 
         SDL_RenderPresent(renderer);
     }
     printf("Exiting sdl_thread\n");
@@ -367,7 +401,7 @@ void exit_sdl_thread() {
     SDL_UnlockMutex(frame_lock);
 }
 
-// Initialization and de-initialization
+//* Initialization and de-initialization
 void init_sdl() {
 
     printf("Initialising SDL.\n");
@@ -377,11 +411,21 @@ void init_sdl() {
         exit(1);
     }
 
+    if(SDL_GameControllerAddMappingsFromFile("res/gamecontrollerdb.txt") == -1){
+        printf("SDL_GameControllerAddMappingsFromFile(): %s", SDL_GetError());
+    };
+
     printf("Creating SDL Window.\n");
     if(!(screen = SDL_CreateWindow(NULL,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED , 256 , 240 , SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
     {
         printf("failed to create window: %s", SDL_GetError());
         exit(1);
+    }
+
+    if( TTF_Init() == -1 )
+    {
+        printf("failed to init SDL_TTF: %s", SDL_GetError());
+        exit(1);  
     }
 
     printf("Creating SDL Renderer.\n");
@@ -391,7 +435,7 @@ void init_sdl() {
         exit(1);
     }
 
-    // Display some information about the renderer
+    //* Display some information about the renderer
     SDL_RendererInfo renderer_info;
     printf("Getting Renderer Info\n");
     if (SDL_GetRendererInfo(renderer, &renderer_info))
@@ -428,12 +472,12 @@ void init_sdl() {
     back_buffer  = render_buffers[0];
     front_buffer = render_buffers[1];
 
-    // Audio
+    //* Audio
     SDL_AudioSpec want;
     SDL_AudioSpec got;
 
     want.freq     = sample_rate; 
-    want.format   = AUDIO_S16LSB;  // AUDIO_S16SYS in original - AUDIO_S16LSB in kevtroots switch port
+    want.format   = AUDIO_S16LSB;  //* AUDIO_S16SYS in original - AUDIO_S16LSB in kevtroots switch port
     want.channels = 1;
     want.samples  = sdl_audio_buffer_size;
     want.callback = audio_callback;
@@ -446,18 +490,7 @@ void init_sdl() {
     printf("channels: %i, %i\n", want.channels, got.channels);
     printf("samples: %i, %i\n", want.samples, got.samples);
     
-    // Not sure if these are needed by ImGUI, TODO
-    //SDL_EventState(SDL_MOUSEBUTTONDOWN, SDL_IGNORE);
-    //SDL_EventState(SDL_MOUSEBUTTONUP  , SDL_IGNORE);
-    //SDL_EventState(SDL_MOUSEMOTION    , SDL_IGNORE);
-    //SDL_EventState(SDL_WINDOWEVENT, SDL_IGNORE);
-
-    /* Ignore key events */
-    SDL_EventState(SDL_KEYDOWN, SDL_IGNORE);
-    SDL_EventState(SDL_KEYUP, SDL_IGNORE);
-
-
-    // SDL thread synchronization
+    //* SDL thread synchronization
     printf("Creating 'event_lock' Mutex\n");
     if(!(event_lock = SDL_CreateMutex())) {
         printf("failed to create event mutex: %s", SDL_GetError());
@@ -474,8 +507,15 @@ void init_sdl() {
         printf("failed to create frame condition variable: %s", SDL_GetError());
         exit(1);
     }
+    
+    //* Load a nice retro font,
+    //* https://www.fontspace.com/diary-of-an-8-bit-mage-font-f28455
+    overlay_font = TTF_OpenFont("res/DiaryOfAn8BitMage.ttf", 30);
+    if(!overlay_font) {
+        printf("TTF_OpenFont: %s\n", TTF_GetError());
+    }
 
-    // Block until a ROM is selected
+    //* Block until a ROM is selected
     SDL_ShowCursor(SDL_DISABLE);
     GUI::init(screen, renderer);
 }
@@ -485,12 +525,14 @@ void deinit_sdl() {
     puts("-------------------------------------------------------");
     ImGuiSDL::Deinitialize();
 	ImGui::DestroyContext();
-    SDL_DestroyRenderer(renderer); // Also destroys the texture
+    SDL_DestroyRenderer(renderer); //* Also destroys the texture
     SDL_DestroyWindow(screen);
     SDL_DestroyMutex(event_lock);
     SDL_DestroyMutex(frame_lock);
     SDL_DestroyCond(frame_available_cond);
-    SDL_CloseAudioDevice(audio_device_id); // Prolly not needed, but play it safe
+    SDL_CloseAudioDevice(audio_device_id); //* Prolly not needed, but play it safe
+    TTF_CloseFont(overlay_font);
+    TTF_Quit();
     SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
     SDL_Quit();
 }

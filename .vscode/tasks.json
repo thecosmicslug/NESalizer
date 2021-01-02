@@ -7,8 +7,9 @@
         "label": "Release Build",
         "type": "shell",
         "command": "${workspaceFolder}/build_nesalizer.sh",
-        "args": [""],
-        //"dependsOn": ["Make Clean"],
+        "args": [
+          ""
+        ],
         "presentation": {
           "echo": true,
           "reveal": "always",
@@ -20,14 +21,18 @@
         "group": {
           "kind": "build",
           "isDefault": true
-        },
+        }
       },
       {
         "label": "Debug Build",
         "type": "shell",
         "command": "${workspaceFolder}/build_nesalizer.sh",
-        "args": ["conf=DEBUG"],
-        "dependsOn": ["Make Clean"],
+        "args": [
+          "conf=DEBUG"
+        ],
+        "dependsOn": [
+          "Make Clean"
+        ],
         "presentation": {
           "echo": true,
           "reveal": "always",
@@ -39,7 +44,7 @@
         "group": {
           "kind": "test",
           "isDefault": true
-        },
+        }
       },
       {
         "label": "Make Clean",
@@ -53,7 +58,8 @@
           "panel": "shared",
           "showReuseMessage": false,
           "clear": false
-        }
+        },
+        "problemMatcher": []
       }
     ]
   }

@@ -1,7 +1,6 @@
-// NES-CPROM - only used by Videomation
+//* NES-CPROM - only used by Videomation
 
 #include "common.h"
-
 #include "mapper.h"
 
 static uint8_t chr_bank;
@@ -11,11 +10,11 @@ static void apply_state() {
 }
 
 void mapper_13_init() {
-    // PRG and lower CHR bank fixed
+    //* PRG and lower CHR bank fixed
     set_prg_32k_bank(0);
     set_chr_4k_bank(0, 0);
 
-    // Guess
+    //* Guess
     chr_bank = 0;
 
     apply_state();

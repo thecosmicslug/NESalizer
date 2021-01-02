@@ -1,11 +1,18 @@
 #pragma once
 
-// GUI Dialog WIP
 #include "imgui.h"
 #include "imgui_sdl.h"
 #include "imguifilesystem.h"   
 
+#include <string>
+
 extern bool bShowGUI;
+extern bool bShowOverlayText;
+
+extern unsigned int OverlayTickCount;
+extern std::string TextOverlayMSG;
+extern char *statename;
+extern int statenum;
 
 namespace GUI {
 
@@ -16,6 +23,8 @@ void main_run();
 void stop_main_run();
 void unload_rom();
 
-void process_gui_events();
+bool saveScreenshot(const std::string &file);
+void SetROMStateFilename();
+void ShowTextOverlay(std::string MSG);
 
 }

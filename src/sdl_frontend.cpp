@@ -1,6 +1,10 @@
 
+#include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+
 #include <string>
 #include <csignal>
+#include <iostream>
 
 #include "common.h"
 #include "sdl_backend.h"
@@ -10,11 +14,27 @@
 #include "rom.h"
 #include "sdl_frontend.h"
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_image.h>
+using std::string;
 
-// Default false, we assume a ROM will be supplied, GUI if not.
+//* Default false, we assume a ROM will be supplied, GUI if not.
 bool bShowGUI=false;
+bool bShowOverlayText=false;
+
+std::string TextOverlayMSG;
+unsigned int OverlayTickCount;
+char *statename;
+int statenum=0;
+
+using std::string;
+
+void replaceExt(string& s, const string& newExt) {
+
+   string::size_type i = s.rfind('.', s.length());
+
+   if (i != string::npos) {
+      s.replace(i+1, newExt.length(), newExt);
+   }
+}
 
 namespace GUI
 {
@@ -30,9 +50,51 @@ SDL_Texture *background;
 bool pause = true;
 bool exitFlag = false;
 
-void unload_rom()
+void SetROMStateFilename()
 {
-    unload_rom();
+    //* Strip Path , Add State folder , Replace extension
+    string filename = basename(fname);
+    string path = "states/" + filename;
+    replaceExt(path, "state");
+
+    //* Add statenumber
+    path = path + std::to_string(statenum);
+
+    //* Convert back to char-array
+    statename = new char [path.length()+1];
+    strcpy (statename, path.c_str());
+    printf("Setting Savestate to '%s'\n", statename);
+}
+
+void ShowTextOverlay(std::string MSG)
+{
+    TextOverlayMSG=MSG;
+    printf("Showing Text Overlay MSG '%s'\n", MSG);
+    bShowOverlayText=true;
+    OverlayTickCount = SDL_GetTicks();
+}
+
+bool saveScreenshot(const std::string &file) {
+  SDL_Rect _viewport;
+  SDL_Surface *_surface = NULL;
+  SDL_RenderGetViewport( renderer, &_viewport);
+  _surface = SDL_CreateRGBSurface( 0, _viewport.w, _viewport.h, 32, 0, 0, 0, 0 );
+  if ( _surface == NULL ) {
+    std::cout << "Cannot create SDL_Surface: " << SDL_GetError() << std::endl;
+    return false;
+   }
+  if ( SDL_RenderReadPixels( renderer, NULL, _surface->format->format, _surface->pixels, _surface->pitch ) != 0 ) {
+    std::cout << "Cannot read data from SDL_Renderer: " << SDL_GetError() << std::endl;
+    SDL_FreeSurface(_surface);
+    return false;
+  }
+  if ( IMG_SavePNG( _surface, file.c_str() ) != 0 ) {
+    std::cout << "Cannot save PNG file: " << SDL_GetError() << std::endl;
+    SDL_FreeSurface(_surface);
+    return false;
+  }
+  SDL_FreeSurface(_surface);
+  return true;
 }
 
 void stop_main_run()
@@ -44,8 +106,8 @@ void main_run()
 {
     SDL_Thread *emu_thread;
 
-    // Get initial frame lock until ROM is chosen.
-    //SDL_LockMutex(frame_lock);                // Commented out in Kevroots switch port
+    //* Get initial frame lock until ROM is chosen.
+    //*SDL_LockMutex(frame_lock);                //* Commented out in Kevroots switch port
     printf("creating emulation thread, running_state & exitFlag set\n");
     exitFlag = false;
     running_state = true;
@@ -71,39 +133,44 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
 {
     renderer = rend;
     window = scr;
-    puts("Setting up ImGui\n");
+
+    //* Setup ImGUI Backend for our interface
     if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
     {
-        puts("Error Setting up ImGui::init() SDL_CreateTexture()\n");
+        printf("IMG_Init(): %s\n", IMG_GetError());
         exit(1);
     }
 
-    puts("Setting up ImGUI background texture\n");
-    SDL_Surface *backSurface = IMG_Load("bgwallpaper.png");
-    background = SDL_CreateTextureFromSurface(renderer, backSurface);
-    SDL_FreeSurface(backSurface);
-    if (!background)
+    SDL_Surface *backSurface = IMG_Load("res/wallpaper.png");
+    if(!backSurface) {
+        printf("IMG_Load: %s\n", IMG_GetError());
+    }
+    else
     {
-        puts("Error Setting up ImGui::init() SDL_CreateTextureFromSurface()\n");
-        exit(1);
+        background = SDL_CreateTextureFromSurface(renderer, backSurface);
+        SDL_FreeSurface(backSurface);
+        if (!background)
+        {
+            printf("SDL_CreateTextureFromSurface(): %s\n",  SDL_GetError());
+        }
     }
-
-    // Setup Dear ImGui
+    
     puts("Setting up ImGui::CreateContext()\n");
 	ImGui::CreateContext();
 
-	// Enable Gamepad Controls
+	//** Enable Gamepad Controls
 	ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad; 
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
 	io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
+    io.IniFilename = nullptr; 
     
     puts("Initialising  ImGuiSDL::Initialize\n");
 	ImGuiSDL::Initialize(renderer,window, 256 , 240);
 	ImGui::StyleColorsDark();
 }
 
-// Render ImGUI File Dialog
+//* Render ImGUI File Dialog
 void render()
 {
     static ImGuiFs::Dialog dlg;
@@ -115,23 +182,31 @@ void render()
     }
 
     ImGuiSDL::NewFrame(window);
-    ImGui::Begin("Load NES Rom...",NULL,ImGuiWindowFlags_NoSavedSettings);
-    
-    //chosenPath = dlg.chooseFileDialog(bShowGUI,NULL,".nes");
-    chosenPath = dlg.chooseFileDialog(bShowGUI,NULL,".nes", "Choose a NES ROM...");
+    ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_NoSavedSettings);
+    chosenPath = dlg.chooseFileDialog(bShowGUI,"./roms/",".nes", "Choose a ROM.");
 
     ImGui::End();
     ImGui::Render();
     ImGuiSDL::Render(ImGui::GetDrawData());
 
-    SDL_RenderPresent(renderer);
-
     if (strlen(dlg.getChosenPath())>0) {
-        printf("Loading ROM: %s\n", chosenPath);
-        load_rom(chosenPath);
-        bShowGUI=false;
+        if(load_rom(chosenPath)){
+            SetROMStateFilename();
+            std::string tmpstr = "ROM  '";
+            tmpstr  += basename(fname);
+            tmpstr  += "'  Loaded!";
+            ShowTextOverlay(tmpstr); 
+            bShowGUI=false;
+        };
     }
     
+    SDL_RenderPresent(renderer);
+
+}
+
+void unload_rom()
+{
+    unload_rom();
 }
 
 /* Play/stop the game */
@@ -139,7 +214,7 @@ void toggle_pause()
 {
     pause = !pause;
 
-    // Set CPU emulation to paused
+    //* Set CPU emulation to paused
     if (pause)
     {
         printf("toggle_pause() - Paused\n");
@@ -155,11 +230,10 @@ void toggle_pause()
     }
 }
 
-
 static int emulation_thread(void *)
 {
     run();
     return 0;
 }
 
-} // namespace GUI
+} //* namespace GUI

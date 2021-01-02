@@ -1,14 +1,14 @@
-// Holds initialized data where C99's designated initializer feature is handy
+//* Holds initialized data where C99's designated initializer feature is handy
 
 #include "opcodes.h"
 
 #include <stdint.h>
 
-// See cpu.cpp.
-//
-// For CLI and SEI, the flag changes after the interrupt is polled, so both
-// can safely go in this list (the polling is influenced by the current
-// flag status like for the rest)
+//* See cpu.cpp.
+//*
+//* For CLI and SEI, the flag changes after the interrupt is polled, so both
+//* can safely go in this list (the polling is influenced by the current
+//* flag status like for the rest)
 uint8_t const polls_irq_after_first_cycle[256] = {
     [ADC_IMM] = 1, [ALR_IMM] = 1, [AN0_IMM] = 1, [AN1_IMM] = 1, [AND_IMM] = 1, [ARR_IMM] = 1, [ASL_ACC] = 1,
     [BCC]     = 1, [ATX_IMM] = 1, [AXS_IMM] = 1, [BCS]     = 1, [BEQ]     = 1, [BMI]     = 1, [BNE]     = 1,

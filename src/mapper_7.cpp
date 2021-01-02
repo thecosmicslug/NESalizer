@@ -1,7 +1,6 @@
-// AxROM
+//* AxROM
 
 #include "common.h"
-
 #include "mapper.h"
 
 static uint8_t reg;
@@ -12,7 +11,7 @@ static void apply_state() {
 }
 
 void mapper_7_init() {
-    set_chr_8k_bank(0); // CHR fixed
+    set_chr_8k_bank(0); //* CHR fixed
     reg = 0;
     apply_state();
 }

@@ -10,14 +10,15 @@
 #include "rom.h"
 #include "save_states.h"
 #include "timing.h"
+#include "sdl_frontend.h"
 
-// Buffer for an in-memory save state.
+//* Buffer for an in-memory save state.
 static uint8_t *state;
 static size_t state_size;
-static bool has_save;
 
 template<bool calculating_size, bool is_save>
-static size_t transfer_system_state(uint8_t *buf) {
+static size_t transfer_system_state(uint8_t *buf) 
+{
     uint8_t *tmp = buf;
 
     transfer_apu_state<calculating_size, is_save>(buf);
@@ -35,25 +36,56 @@ static size_t transfer_system_state(uint8_t *buf) {
             mapper_fns.load_state(buf);
     }
 
-    // Return size of state in bytes
+    //* Return size of state in bytes
     return buf - tmp;
 }
 
-//
-// Save states
-//
-void save_state() {
+void save_state() 
+{
+    // create a savestate
     transfer_system_state<false, true>(state);
-    has_save = true;
-}
 
-void load_state() {
-    if (has_save) {
-        transfer_system_state<false, false>(state);
+    FILE * pFile;
+    pFile = fopen (statename, "wb");
+    if (pFile != NULL)
+    {
+        // Write it to disk
+        printf("saving to '%s'\n", statename);
+        fwrite (state , sizeof(uint8_t), state_size, pFile);
+        fclose (pFile);
+        std::string tmpstr = "State  '";
+        tmpstr += basename(statename);
+        tmpstr  += "'  Saved!";
+        GUI::ShowTextOverlay(tmpstr);
+    }else
+    {
+        printf("failed to open '%s'\n", statename);
     }
 }
 
-void init_save_states_for_rom() {
+void load_state() 
+{
+    FILE * pFile;
+    pFile = fopen (statename, "r");
+    if (pFile != NULL)
+    {
+        fclose (pFile);
+        printf("loading savestate '%s'\n", basename(statename));
+        state = get_file_buffer(statename, state_size);
+        transfer_system_state<false, false>(state);
+        std::string tmpstr = "State  '";
+        tmpstr += basename(statename);
+        tmpstr += "'  Loaded!";
+        GUI::ShowTextOverlay(tmpstr);
+    }else
+    {
+        printf("failed to load savestate '%s'\n", basename(statename));
+    }
+
+}
+
+void init_save_states_for_rom() 
+{
     state_size = transfer_system_state<true, false>(0);
     if(!(state = new (std::nothrow) uint8_t[state_size])) {
         printf("failed to allocate %zu-byte buffer for save state", state_size);
@@ -61,7 +93,7 @@ void init_save_states_for_rom() {
     }
 }
 
-void deinit_save_states_for_rom() {
+void deinit_save_states_for_rom() 
+{
     free_array_set_null(state);
-    has_save = false;
 }

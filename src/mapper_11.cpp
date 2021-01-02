@@ -1,7 +1,6 @@
-// Color Dreams
+//* Color Dreams
 
 #include "common.h"
-
 #include "mapper.h"
 
 uint8_t prg_bank, chr_bank;

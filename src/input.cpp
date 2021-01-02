@@ -3,7 +3,7 @@
 #include <SDL2/SDL.h>
 
 static struct Controller_data {
-    // Button states
+    //* Button states
     bool left_pushed, right_pushed, up_pushed, down_pushed,
          a_pushed, b_pushed, start_pushed, select_pushed;
 } controller_data[2];
@@ -21,35 +21,35 @@ uint8_t set_button_state(unsigned n, unsigned i) {
     switch(i)
     {
         case  0:
-            // A
+            //* A
             controller_data[n].a_pushed=true;
             break;
         case  1:
-            // B
+            //* B
             controller_data[n].b_pushed=true;
             break;
         case  2:
-            // Select
+            //* Select
             controller_data[n].select_pushed=true;
             break;
         case  3:
-            // Start
+            //* Start
            controller_data[n].start_pushed=true;
             break;
         case  4:
-            // Up
+            //* Up
             controller_data[n].up_pushed=true;
             break;
         case  5:
-            // Down
+            //* Down
             controller_data[n].down_pushed=true;
             break;
         case  6:
-            // Left
+            //* Left
             controller_data[n].left_pushed=true;
             break;
         case 7:
-            // Right
+            //* Right
             controller_data[n].right_pushed=true;
             break;
     }
@@ -63,35 +63,35 @@ uint8_t clear_button_state(unsigned n, unsigned i) {
     switch(i)
     {
         case  0:
-            // A
+            //* A
             controller_data[n].a_pushed=false;
             break;
         case  1:
-            // B
+            //* B
             controller_data[n].b_pushed=false;
             break;
         case  2:
-            // Select
+            //* Select
             controller_data[n].select_pushed=false;
             break;
         case  3:
-            // Start
+            //* Start
             controller_data[n].start_pushed=false;
             break;
         case  4:
-            // Up
+            //* Up
             controller_data[n].up_pushed=false;
             break;
         case  5:
-            // Down
+            //* Down
             controller_data[n].down_pushed=false;
             break;
         case  6:
-            // Left
+            //* Left
            controller_data[n].left_pushed=false;
             break;
         case 7:
-            // Right
+            //* Right
            controller_data[n].right_pushed=false;
             break;
     }

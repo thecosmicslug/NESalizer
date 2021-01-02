@@ -1,4 +1,4 @@
-/* blip_buf 1.1.0. http://www.slack.net/~ant/ */
+/* blip_buf 1.1.0. http://*www.slack.net/~ant/ */
 
 #include "blip_buf.h"
 
@@ -171,7 +171,7 @@ int blip_clocks_needed( const blip_t* m, int samples )
 {
 	fixed_t needed;
 
-	// Fails if buffer can't hold that many more samples
+	//* Fails if buffer can't hold that many more samples
 	assert( samples >= 0 && m->avail + samples <= m->size );
 
 	needed = (fixed_t) samples * time_unit;
@@ -339,7 +339,7 @@ void blip_add_delta_fast( blip_t* m, unsigned time, int delta )
 	int interp = fixed >> (frac_bits - delta_bits) & (delta_unit - 1);
 	int delta2 = delta * interp;
 
-	// Fails if buffer size was exceeded
+	//* Fails if buffer size was exceeded
 	assert( out <= &SAMPLES( m ) [m->size + end_frame_extra] );
 
 	out [7] += delta * delta_unit - delta2;

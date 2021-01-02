@@ -7,18 +7,17 @@
 #include "ppu.h"
 #include "rom.h"
 
-// Clock used by the APU and DMA circuitry, parts of which tick at half the CPU
-// frequency. Whether the initial tick is high or low seems to be random. The
-// name apu_clk1 is from Visual 2A03.
+//* Clock used by the APU and DMA circuitry, parts of which tick at half the CPU
+//* frequency. Whether the initial tick is high or low seems to be random. The
+//* name apu_clk1 is from Visual 2A03.
 static bool apu_clk1_is_high;
 
-//
-// OAM (sprite data) DMA
-//
-// Put here since it uses the APU clock and has interactions with DMC DMA
+//*
+//* OAM (sprite data) DMA
+//* Put here since it uses the APU clock and has interactions with DMC DMA
 
-// Current OAM DMA state. Needed to get the timing for APU DMC sample loading
-// right (tested by the sprdma_and_dmc_dma tests).
+//* Current OAM DMA state. Needed to get the timing for APU DMC sample loading
+//* right (tested by the sprdma_and_dmc_dma tests).
 static enum OAM_DMA_state {
     OAM_DMA_IN_PROGRESS = 0,
     OAM_DMA_IN_PROGRESS_3RD_TO_LAST_TICK,
@@ -27,23 +26,23 @@ static enum OAM_DMA_state {
 } oam_dma_state;
 
 void do_oam_dma(uint8_t addr) {
-    // We get either WDTTT... or WDDTTT... where W is the write cycle, D a
-    // dummy cycle, and T a transfer cycle (there's 512 of them). The extra
-    // dummy cycle occurs if the write cycle has apu_clk1 low.
+    //* We get either WDTTT... or WDDTTT... where W is the write cycle, D a
+    //* dummy cycle, and T a transfer cycle (there's 512 of them). The extra
+    //* dummy cycle occurs if the write cycle has apu_clk1 low.
 
-    // The current OAM DMA state influences the timing for APU DMC sample
-    // loads, so we need to keep track of it
+    //* The current OAM DMA state influences the timing for APU DMC sample
+    //* loads, so we need to keep track of it
 
     oam_dma_state = OAM_DMA_IN_PROGRESS;
 
-    // Dummy cycles
+    //* Dummy cycles
     if (!apu_clk1_is_high) tick();
     tick();
 
     unsigned const start_addr = 0x100*addr;
     for (unsigned i = 0; i < 254; ++i) {
-        // Do it like this to get open bus right. Could be that it's not
-        // visible in any way though.
+        //* Do it like this to get open bus right. Could be that it's not
+        //* visible in any way though.
         cpu_data_bus = read_mem(start_addr + i);
         tick();
         write_oam_data_reg(cpu_data_bus);
@@ -64,28 +63,28 @@ void do_oam_dma(uint8_t addr) {
 }
 
 
-// Set when the output level of any channel changes. Lets us skip the mixing
-// step most of the time.
+//* Set when the output level of any channel changes. Lets us skip the mixing
+//* step most of the time.
 static bool channel_updated;
 
 void begin_audio_frame() { channel_updated = true; }
 
-// Length counter look-up table
+//* Length counter look-up table
 uint8_t const len_table[] = {
   10, 254, 20,  2, 40,  4, 80,  6, 160,  8, 60, 10, 14, 12, 26, 14,
   12,  16, 24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30 };
 
-//
-// Pulse channels
-//
+//*
+//* Pulse channels
+//*
 
 static struct Pulse {
-    // Range 0-15
-    // (Potentially) affected by
-    //   - volume updates,
-    //   - length counter updates,
-    //   - period updates,
-    //   - and waveform position updates
+    //* Range 0-15
+    //* (Potentially) affected by
+    //*   - volume updates,
+    //*   - length counter updates,
+    //*   - period updates,
+    //*   - and waveform position updates
     unsigned output_level;
 
     bool     enabled;
@@ -109,15 +108,15 @@ static struct Pulse {
     bool     halt_len_loop_env;
     bool     env_start_flag;
 
-    // Recalculated whenever anything happens that might affect the sweep
-    // target period. Not sure if this optimization is still worthwhile.
+    //* Recalculated whenever anything happens that might affect the sweep
+    //* target period. Not sure if this optimization is still worthwhile.
     int sweep_target_period;
 } pulse[2];
 
 static void update_sweep_target_period(unsigned n) {
     int addition = pulse[n].period >> pulse[n].sweep_shift;
-    // The adder on the first pulse channel is missing the carry in to the
-    // first bit for some unknown reason
+    //* The adder on the first pulse channel is missing the carry in to the
+    //* first bit for some unknown reason
     if (pulse[n].sweep_negate) addition = (n == 0) ? ~addition : -addition;
     pulse[n].sweep_target_period = (int)pulse[n].period + addition;
 }
@@ -179,7 +178,7 @@ void write_pulse_reg_3(unsigned n, uint8_t val) {
         pulse[n].len_cnt = len_table[val >> 3];
     pulse[n].period = (pulse[n].period & ~0x700) | ((val & 7) << 8);
 
-    // Side effects
+    //* Side effects
     pulse[n].waveform_pos   = 0;
     pulse[n].env_start_flag = true;
 
@@ -196,12 +195,12 @@ static void clock_pulse_generator(unsigned n) {
     update_pulse_output_level(n);
 }
 
-//
-// Triangle channel
-//
+//*
+//* Triangle channel
+//*
 
-// Range 0-15, premultiplied by 3 for mixing. Affected only by waveform
-// position updates.
+//* Range 0-15, premultiplied by 3 for mixing. Affected only by waveform
+//* position updates.
 static unsigned tri_output_level;
 
 static bool     tri_enabled;
@@ -234,16 +233,16 @@ void write_triangle_reg_2(uint8_t val) {
     tri_period = (tri_period & ~0x700) | ((val & 7) << 8);
 }
 
-// Premultiply by three to save multiplication during mixing
+//* Premultiply by three to save multiplication during mixing
 uint8_t const tri_waveform_steps[32] =
   { 3*15, 3*14, 3*13, 3*12, 3*11, 3*10, 3*9, 3*8, 3*7, 3*6,  3*5,  3*4,  3*3,  3*2,  3*1,  3*0,
      3*0,  3*1,  3*2,  3*3,  3*4,  3*5, 3*6, 3*7, 3*8, 3*9, 3*10, 3*11, 3*12, 3*13, 3*14, 3*15 };
 
 static void clock_triangle_generator() {
     if (tri_len_cnt > 0 && tri_lin_cnt > 0 &&
-        // Prevent ultrasonic frequencies, which cause pops (very audible for Crashman stage in MM2)
+        //* Prevent ultrasonic frequencies, which cause pops (very audible for Crashman stage in MM2)
         tri_period > 1 &&
-        // Ditto for prolly-too-low-to-be-deliberate frequencies
+        //* Ditto for prolly-too-low-to-be-deliberate frequencies
         tri_period <= 0x7FD)
     {
         unsigned const prev_output_level = tri_output_level;
@@ -256,14 +255,14 @@ static void clock_triangle_generator() {
     }
 }
 
-//
-// Noise channel
-//
+//*
+//* Noise channel
+//*
 
-// Range 0-15, premultiplied by 2 for mixing. Affected by
-//   - volume updates,
-//   - Length counter updates,
-//   - and shift reg value
+//* Range 0-15, premultiplied by 2 for mixing. Affected by
+//*   - volume updates,
+//*   - Length counter updates,
+//*   - and shift reg value
 static unsigned noise_output_level;
 
 static bool     noise_enabled;
@@ -286,13 +285,13 @@ static void update_noise_output_level() {
     noise_output_level =
       (noise_len_cnt == 0 || !(noise_shift_reg & 1)) ?
       0 :
-      2*(noise_const_vol ? noise_vol : noise_env_vol); // Premultiply by 2
+      2*(noise_const_vol ? noise_vol : noise_env_vol); //* Premultiply by 2
 
     if (noise_output_level != prev_output_level)
         channel_updated = true;
 }
 
-// $400C
+//* $400C
 void write_noise_reg_0(uint8_t val) {
     noise_halt_len_loop_env = val & 0x20;
     noise_const_vol         = val & 0x10;
@@ -307,13 +306,13 @@ uint16_t const pal_noise_periods[]  =
   { 4, 8, 14, 30, 60, 88, 118, 148, 188, 236, 354, 472, 708,  944, 1890, 3778 };
 static uint16_t const *noise_periods;
 
-// $400E
+//* $400E
 void write_noise_reg_1(uint8_t val) {
     noise_feedback_bit = (val & 0x80) ? 6 : 1;
     noise_period       = noise_periods[val & 0x0F];
 }
 
-// $400F
+//* $400F
 void write_noise_reg_2(uint8_t val) {
     if (noise_enabled) {
         noise_len_cnt = len_table[val >> 3];
@@ -323,35 +322,35 @@ void write_noise_reg_2(uint8_t val) {
 }
 
 static void clock_noise_generator() {
-    // Only the lowest bit from 'feedback' is used
+    //* Only the lowest bit from 'feedback' is used
     unsigned const feedback = (noise_shift_reg >> noise_feedback_bit) ^ noise_shift_reg;
     noise_shift_reg = (feedback << 14) | (noise_shift_reg >> 1);
     update_noise_output_level();
 }
 
-//
-// DMC channel
-//
+//*
+//* DMC channel
+//*
 
-// Range 0-127
-// Counter value directly determines output level
+//* Range 0-127
+//* Counter value directly determines output level
 static unsigned dmc_counter;
 
-// Set by the last sample byte being loaded, unless inhibited or looping is set
-// Cleared by
-//  * the reset signal,
-//  * writing $4015,
-//  * and clearing the IRQ enable flag in $4010
+//* Set by the last sample byte being loaded, unless inhibited or looping is set
+//* Cleared by
+//*  * the reset signal,
+//*  * writing $4015,
+//*  * and clearing the IRQ enable flag in $4010
 bool            dmc_irq;
-// $4010
+//* $4010
 static bool     dmc_irq_enabled;
 static bool     dmc_loop_sample;
 static unsigned dmc_period;
 static unsigned dmc_period_cnt;
 
-// $4012, missing the implied "| 0x8000" that puts it into ROM
+//* $4012, missing the implied "| 0x8000" that puts it into ROM
 static unsigned dmc_sample_start_addr;
-// $4013
+//* $4013
 static unsigned dmc_sample_len;
 
 static uint8_t  dmc_sample_buffer;
@@ -359,11 +358,11 @@ static bool     dmc_sample_buffer_has_data;
 static uint8_t  dmc_shift_reg;
 static bool     dpcm_active;
 
-// True while a sample byte is being loaded, to prevent recursion in
-// load_dmc_sample_byte(). This also mirrors how the hardware behaves.
+//* True while a sample byte is being loaded, to prevent recursion in
+//* load_dmc_sample_byte(). This also mirrors how the hardware behaves.
 static bool     dmc_loading_sample_byte;
 
-static unsigned dmc_sample_cur_addr; // 15 bits wide
+static unsigned dmc_sample_cur_addr; //* 15 bits wide
 static unsigned dmc_bytes_remaining;
 static unsigned dmc_bits_remaining;
 
@@ -398,32 +397,32 @@ void write_dmc_reg_3(uint8_t val) {
 }
 
 static void load_dmc_sample_byte() {
-    // Timing: http://forums.nesdev.com/viewtopic.php?p=62690#p62690
+    //* Timing: http://*forums.nesdev.com/viewtopic.php?p=62690#p62690
     static uint8_t const oam_dma_delay[] =
-      { 2,   // OAM_DMA_IN_PROGRESS
-        1,   // OAM_DMA_IN_PROGRESS_3RD_TO_LAST_TICK
-        3 }; // OAM_DMA_IN_PROGRESS_LAST_TICK
+      { 2,   //* OAM_DMA_IN_PROGRESS
+        1,   //* OAM_DMA_IN_PROGRESS_3RD_TO_LAST_TICK
+        3 }; //* OAM_DMA_IN_PROGRESS_LAST_TICK
 
     assert(dmc_bytes_remaining > 0);
 
-    // This can happen if a write to $4015 that enables the channel is
-    // immediately followed by a DMC clock. The hardware appears to act the
-    // same.
+    //* This can happen if a write to $4015 that enables the channel is
+    //* immediately followed by a DMC clock. The hardware appears to act the
+    //* same.
     if (dmc_loading_sample_byte)
         return;
 
     dmc_sample_buffer = read_prg(dmc_sample_cur_addr);
-    // Should do this to be OCD and get open bus rights, but it currently
-    // breaks OAM DMA
-    // cpu_data_bus = dmc_sample_buffer;
+    //* Should do this to be OCD and get open bus rights, but it currently
+    //* breaks OAM DMA
+    //* cpu_data_bus = dmc_sample_buffer;
 
     dmc_loading_sample_byte = true;
     unsigned const delay =
       (oam_dma_state != OAM_DMA_NOT_IN_PROGRESS) ?
         oam_dma_delay[oam_dma_state] :
         cpu_is_reading ? 4 : 3;
-    // We use tick() since the PPU as as well as the rest of the APU should
-    // keep ticking during the fetch
+    //* We use tick() since the PPU as as well as the rest of the APU should
+    //* keep ticking during the fetch
     for (unsigned i = 0; i < delay; ++i) tick();
     dmc_loading_sample_byte = false;
     dmc_sample_buffer_has_data = true;
@@ -468,15 +467,15 @@ static void clock_dmc() {
     }
 }
 
-//
-// Frame counter
-//
+//*
+//* Frame counter
+//*
 
-// Set by the frame counter in 4-step mode, unless inhibited
-// Cleared by (derived from Visual 2A03)
-//  * the reset signal,
-//  * setting the inhibit IRQ flag,
-//  * and reading $4015
+//* Set by the frame counter in 4-step mode, unless inhibited
+//* Cleared by (derived from Visual 2A03)
+//*  * the reset signal,
+//*  * setting the inhibit IRQ flag,
+//*  * and reading $4015
 bool        frame_irq;
 
 static enum Frame_counter_mode { FOUR_STEP = 0, FIVE_STEP = 1 } frame_counter_mode;
@@ -485,10 +484,10 @@ static unsigned frame_counter_clock;
 
 static unsigned delayed_frame_timer_reset;
 
-// Quarter frame
+//* Quarter frame
 static void clock_env_and_tri_lin() {
 
-    // Pulse channels
+    //* Pulse channels
 
     for (unsigned n = 0; n < 2; ++n) {
         if (pulse[n].env_start_flag) {
@@ -511,7 +510,7 @@ static void clock_env_and_tri_lin() {
         update_pulse_output_level(n);
     }
 
-    // Noise channel
+    //* Noise channel
 
     if (noise_env_start_flag) {
         noise_env_start_flag = false;
@@ -532,7 +531,7 @@ static void clock_env_and_tri_lin() {
     }
     update_noise_output_level();
 
-    // Triangle channel
+    //* Triangle channel
 
     if (tri_lin_cnt_reload_flag) {
         tri_lin_cnt_reload_flag = tri_halt_flag;
@@ -543,7 +542,7 @@ static void clock_env_and_tri_lin() {
             --tri_lin_cnt;
 }
 
-// Half frame
+//* Half frame
 static void clock_len_and_sweep() {
     for (unsigned n = 0; n < 2; ++n) {
         if (!pulse[n].halt_len_loop_env && pulse[n].len_cnt > 0) {
@@ -586,9 +585,9 @@ void write_frame_counter(uint8_t val) {
     if ((inhibit_frame_irq = val & 0x40))
         set_frame_irq(false);
 
-    // There is a delay before the frame counter is reset, the length of which
-    // varies depending on if the write happens while apu_clk1 is high or low:
-    // http://wiki.nesdev.com/w/index.php/APU_Frame_Counter
+    //* There is a delay before the frame counter is reset, the length of which
+    //* varies depending on if the write happens while apu_clk1 is high or low:
+    //* http://*wiki.nesdev.com/w/index.php/APU_Frame_Counter
     delayed_frame_timer_reset = apu_clk1_is_high ? 4 : 3;
 
     if (frame_counter_mode == FIVE_STEP) {
@@ -597,23 +596,23 @@ void write_frame_counter(uint8_t val) {
     }
 }
 
-// The frame IRQ is set during three consecutive CPU ticks at the end of the
-// frame period when in four-step mode, so we factor out this helper
+//* The frame IRQ is set during three consecutive CPU ticks at the end of the
+//* frame period when in four-step mode, so we factor out this helper
 static void check_frame_irq() {
     if (!inhibit_frame_irq)
         set_frame_irq(true);
 }
 
-// The actual frame counter counts at half the CPU frequency, but the half and
-// quarter frame signals are delayed by one CPU cycle, making it easier to
-// treat it as counting in CPU cycles.
-//
-// T1-T5 are the times in CPU ticks for the quarter frame and half frame
-// signals, in ascending order. They differ between NTSC and PAL.
+//* The actual frame counter counts at half the CPU frequency, but the half and
+//* quarter frame signals are delayed by one CPU cycle, making it easier to
+//* treat it as counting in CPU cycles.
+//*
+//* T1-T5 are the times in CPU ticks for the quarter frame and half frame
+//* signals, in ascending order. They differ between NTSC and PAL.
 template<unsigned T1, unsigned T2, unsigned T3, unsigned T4, unsigned T5>
 static void clock_frame_counter_generic() {
-    // Possible optimization: Could be sped up with a down-counter instead of a
-    // switch
+    //* Possible optimization: Could be sped up with a down-counter instead of a
+    //* switch
 
     switch (frame_counter_mode) {
     case FOUR_STEP:
@@ -670,18 +669,18 @@ static void clock_frame_counter_generic() {
     }
 }
 
-// Points to the correct instantiated version for NTSC/PAL
+//* Points to the correct instantiated version for NTSC/PAL
 static void (*clock_frame_counter)();
 
-//
-// Status
-//
+//*
+//* Status
+//*
 
 uint8_t read_apu_status() {
     uint8_t const res =
       (dmc_irq                   << 7) |
       (frame_irq                 << 6) |
-      (cpu_data_bus            & 0x20) | // Open bus
+      (cpu_data_bus            & 0x20) | //* Open bus
       ((dmc_bytes_remaining > 0) << 4) |
       ((noise_len_cnt       > 0) << 3) |
       ((tri_len_cnt         > 0) << 2) |
@@ -709,13 +708,13 @@ void write_apu_status(uint8_t val) {
         update_noise_output_level();
     }
 
-    // We need to clear the DMC IRQ before handling the DMC enable/disable in
-    // case a one-byte sample is loaded below, which will immediately fire a
-    // DMC IRQ
+    //* We need to clear the DMC IRQ before handling the DMC enable/disable in
+    //* case a one-byte sample is loaded below, which will immediately fire a
+    //* DMC IRQ
     set_dmc_irq(false);
 
-    // DMC enable bit. We model DMC enabled/disabled through the number of
-    // sample bytes that remain (greater than zero => enabled).
+    //* DMC enable bit. We model DMC enabled/disabled through the number of
+    //* sample bytes that remain (greater than zero => enabled).
     if (!(val & 0x10))
         dmc_bytes_remaining = 0;
     else {
@@ -728,17 +727,17 @@ void write_apu_status(uint8_t val) {
     }
 }
 
-//
-// Mixer
-//
+//*
+//* Mixer
+//*
 
-// Use float instead of double to save some cache. Shouldn't make any
-// difference otherwise.
+//* Use float instead of double to save some cache. Shouldn't make any
+//* difference otherwise.
 static float pulse_mixer_table[31];
 static float tri_noi_dmc_mixer_table[203];
 
 void init_apu() {
-    // http://wiki.nesdev.com/w/index.php/APU_Mixer
+    //* http://*wiki.nesdev.com/w/index.php/APU_Mixer
 
     pulse_mixer_table[0] = 0;
     for (unsigned n = 1; n < 31; ++n)
@@ -750,13 +749,13 @@ void init_apu() {
 }
 
 void init_apu_for_rom() {
-    // Frame counter timing:
-    //   http://wiki.nesdev.com/w/index.php/APU_Frame_Counter
-    //   http://forums.nesdev.com/viewtopic.php?t=9011
-    //
-    // TODO: Docs specify 20780 for the final clock in PAL mode, but 20782
-    // makes tests pass (including for the next clock after that). Investigate
-    // further.
+    //* Frame counter timing:
+    //*   http://*wiki.nesdev.com/w/index.php/APU_Frame_Counter
+    //*   http://*forums.nesdev.com/viewtopic.php?t=9011
+    //*
+    //* TODO: Docs specify 20780 for the final clock in PAL mode, but 20782
+    //* makes tests pass (including for the next clock after that). Investigate
+    //* further.
 
     if (is_pal) {
         clock_frame_counter =
@@ -780,48 +779,48 @@ void tick_apu() {
     clock_frame_counter();
 
     if (!apu_clk1_is_high)
-        //
-        // Pulse
-        //
+        //*
+        //* Pulse
+        //*
         for (unsigned n = 0; n < 2; ++n)
             if (--pulse[n].period_cnt == 0) {
                 pulse[n].period_cnt = pulse[n].period + 1;
                 clock_pulse_generator(n);
             }
 
-    //
-    // Triangle
-    //
+    //*
+    //* Triangle
+    //*
 
     if (--tri_period_cnt == 0) {
         tri_period_cnt = tri_period + 1;
         clock_triangle_generator();
     }
 
-    //
-    // Noise
-    //
+    //*
+    //* Noise
+    //*
 
     if (--noise_period_cnt == 0) {
         noise_period_cnt = noise_period + 1;
         clock_noise_generator();
     }
 
-    //
-    // DMC
-    //
+    //*
+    //* DMC
+    //*
 
     if (--dmc_period_cnt == 0) {
         dmc_period_cnt = dmc_period;
         clock_dmc();
     }
 
-    //
-    // Mixing
-    //
+    //*
+    //* Mixing
+    //*
 
     if (channel_updated) {
-        // Possible optimization: Could use integer math and prebias here
+        //* Possible optimization: Could use integer math and prebias here
         int const signal_level =
           INT16_MIN +
             (pulse_mixer_table[pulse[0].output_level + pulse[1].output_level] +
@@ -834,18 +833,18 @@ void tick_apu() {
     }
 }
 
-//
-// Initialization and resetting
-//
+//*
+//* Initialization and resetting
+//*
 
 void reset_apu() {
-    // Things explicitly initialized by the reset signal, derived from tracing
-    // the _res node in Visual 2A03
+    //* Things explicitly initialized by the reset signal, derived from tracing
+    //* the _res node in Visual 2A03
 
     apu_clk1_is_high = false;
     oam_dma_state    = OAM_DMA_NOT_IN_PROGRESS;
 
-    // Pulse channels
+    //* Pulse channels
 
     for (unsigned n = 0; n < 2; ++n) {
         pulse[n].enabled          = false;
@@ -857,7 +856,7 @@ void reset_apu() {
         pulse[n].env_vol          = 0;
     }
 
-    // Triangle channel
+    //* Triangle channel
 
     tri_enabled      = false;
     tri_period_cnt   = 1;
@@ -865,32 +864,32 @@ void reset_apu() {
     tri_len_cnt      = 0;
     tri_lin_cnt      = 0;
 
-    // Noise channel
+    //* Noise channel
 
     noise_enabled     = false;
     noise_period      = noise_period_cnt = noise_periods[0];
     noise_len_cnt     = 0;
-    noise_shift_reg   = 1; // Essential for LFSR to work
+    noise_shift_reg   = 1; //* Essential for LFSR to work
     noise_env_vol     = 0;
     noise_env_div_cnt = 0;
 
-    // DMC channel
+    //* DMC channel
 
     dmc_period_cnt             = dmc_period = dmc_periods[0];
     dmc_sample_cur_addr        = 0x4000;
     dmc_bytes_remaining        = 0;
     dmc_sample_buffer_has_data = false;
     dmc_bits_remaining         = 8;
-    // The value here shouldn't matter, but this seems to be what the reset
-    // signal does
+    //* The value here shouldn't matter, but this seems to be what the reset
+    //* signal does
     dmc_shift_reg              = 0xFF;
     dpcm_active                = false;
 
-    // Frame counter
+    //* Frame counter
 
     delayed_frame_timer_reset = frame_counter_clock = 0;
 
-    // IRQ sources
+    //* IRQ sources
 
     set_dmc_irq(false);
     set_frame_irq(false);
@@ -900,7 +899,7 @@ void reset_apu() {
         clock_len_and_sweep();
     }
 
-    // Set the initial output levels
+    //* Set the initial output levels
 
     for (unsigned n = 0; n < 2; ++n) {
         update_sweep_target_period(n);
@@ -909,17 +908,17 @@ void reset_apu() {
 
     update_noise_output_level();
 
-    // Avoids a pop due to a sudden volume change when the triangle starts
-    // playing
+    //* Avoids a pop due to a sudden volume change when the triangle starts
+    //* playing
     tri_output_level = tri_waveform_steps[tri_waveform_pos];
 }
 
 void set_apu_cold_boot_state() {
-    // Things that do not get initialized by the reset signal are initialized
-    // here. They're mostly guesses, but some values being off probably isn't
-    // hugely important.
+    //* Things that do not get initialized by the reset signal are initialized
+    //* here. They're mostly guesses, but some values being off probably isn't
+    //* hugely important.
 
-    // Pulse channels
+    //* Pulse channels
 
     for (unsigned n = 0; n < 2; ++n) {
         pulse[n].const_vol         = false;
@@ -936,22 +935,22 @@ void set_apu_cold_boot_state() {
         pulse[n].env_start_flag    = false;
     }
 
-    // Triangle channel
+    //* Triangle channel
 
     tri_period              = 0;
     tri_halt_flag           = false;
     tri_lin_cnt_load        = 0;
     tri_lin_cnt_reload_flag = false;
 
-    // Noise channel
+    //* Noise channel
 
     noise_halt_len_loop_env = false;
     noise_const_vol         = false;
     noise_vol               = 0;
-    noise_feedback_bit      = 1; // Noise looping off
+    noise_feedback_bit      = 1; //* Noise looping off
     noise_env_start_flag    = false;
 
-    // DMC channel
+    //* DMC channel
 
     dmc_counter             = 0;
     dmc_irq_enabled         = false;
@@ -961,25 +960,25 @@ void set_apu_cold_boot_state() {
     dmc_sample_buffer       = 0;
     dmc_loading_sample_byte = false;
 
-    // Frame counter
+    //* Frame counter
 
     frame_counter_mode = FOUR_STEP;
     inhibit_frame_irq  = false;
 
-    // Reset signal takes care of the rest
+    //* Reset signal takes care of the rest
     reset_apu();
 }
 
-//
-// State transfers
-//
+//*
+//* State transfers
+//*
 
 template<bool calculating_size, bool is_save>
 void transfer_apu_state(uint8_t *&buf) {
     TRANSFER(apu_clk1_is_high)
     TRANSFER(oam_dma_state)
 
-    // Pulse channel
+    //* Pulse channel
 
     for (unsigned i = 0; i < 2; ++i) {
         TRANSFER(pulse[i].output_level)
@@ -1005,7 +1004,7 @@ void transfer_apu_state(uint8_t *&buf) {
         TRANSFER(pulse[i].env_start_flag)
     }
 
-    // Triangle channel
+    //* Triangle channel
 
     TRANSFER(tri_output_level)
     TRANSFER(tri_enabled)
@@ -1018,7 +1017,7 @@ void transfer_apu_state(uint8_t *&buf) {
     TRANSFER(tri_lin_cnt)
     TRANSFER(tri_lin_cnt_reload_flag)
 
-    // Noise channel
+    //* Noise channel
 
     TRANSFER(noise_output_level)
     TRANSFER(noise_enabled)
@@ -1036,7 +1035,7 @@ void transfer_apu_state(uint8_t *&buf) {
 
     update_noise_output_level();
 
-    // DMC channel
+    //* DMC channel
 
     TRANSFER(dmc_counter)
     TRANSFER(dmc_irq_enabled)
@@ -1054,7 +1053,7 @@ void transfer_apu_state(uint8_t *&buf) {
     TRANSFER(dmc_bytes_remaining)
     TRANSFER(dmc_bits_remaining)
 
-    // Frame counter
+    //* Frame counter
 
     TRANSFER(frame_counter_mode)
     TRANSFER(inhibit_frame_irq)
@@ -1062,11 +1061,11 @@ void transfer_apu_state(uint8_t *&buf) {
     TRANSFER(delayed_frame_timer_reset)
 }
 
-// Explicit instantiations
+//* Explicit instantiations
 
-// Calculating state size
+//* Calculating state size
 template void transfer_apu_state<true, false>(uint8_t*&);
-// Saving state to buffer
+//* Saving state to buffer
 template void transfer_apu_state<false, true>(uint8_t*&);
-// Loading state from buffer
+//* Loading state from buffer
 template void transfer_apu_state<false, false>(uint8_t*&);

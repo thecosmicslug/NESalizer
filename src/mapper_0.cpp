@@ -1,7 +1,6 @@
-// NROM
+//* NROM
 
 #include "common.h"
-
 #include "mapper.h"
 
 static void apply_state() {}

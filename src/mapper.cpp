@@ -1,17 +1,17 @@
-#include "common.h"
 
+#include "common.h"
 #include "cpu.h"
 #include "mapper.h"
 #include "rom.h"
 
-static uint8_t nop_read(uint16_t) { return cpu_data_bus; } // Return open bus by default
+static uint8_t nop_read(uint16_t) { return cpu_data_bus; } //* Return open bus by default
 static void    nop_write(uint8_t, uint16_t) {}
 static void    nop_ppu_tick_callback() {}
 
-// Implicitly NULL-initialized
+//* Implicitly NULL-initialized
 Mapper_fns mapper_fns_table[256];
 
-// Workaround for not being able to declare templates inside functions
+//* Workaround for not being able to declare templates inside functions
 #define DECLARE_STATE_FNS(n)                     \
   template<bool, bool>                           \
   size_t transfer_mapper_##n##_state(uint8_t*&);
@@ -23,7 +23,7 @@ DECLARE_STATE_FNS( 71) DECLARE_STATE_FNS(232)
 #undef DECLARE_STATE_FNS
 
 void init_mappers() {
-    // All mappers have these
+    //* All mappers have these
     #define MAPPER_COMMON(n)                                                      \
       void mapper_##n##_init();                                                   \
       mapper_fns_table[n].init       = mapper_##n##_init;                         \
@@ -31,14 +31,14 @@ void init_mappers() {
       mapper_fns_table[n].save_state = transfer_mapper_##n##_state<false, true>;  \
       mapper_fns_table[n].load_state = transfer_mapper_##n##_state<false, false>;
 
-    // No mapper (hardwired/NROM)
+    //* No mapper (hardwired/NROM)
     #define MAPPER_NONE(n)                                           \
       MAPPER_COMMON(n)                                               \
       mapper_fns_table[n].read              = nop_read;              \
       mapper_fns_table[n].write             = nop_write;             \
       mapper_fns_table[n].ppu_tick_callback = nop_ppu_tick_callback;
 
-    // Mapper that only reacts to writes
+    //* Mapper that only reacts to writes
     #define MAPPER_W(n)                                              \
       MAPPER_COMMON(n)                                               \
       void mapper_##n##_write(uint8_t, uint16_t);                    \
@@ -46,7 +46,7 @@ void init_mappers() {
       mapper_fns_table[n].write             = mapper_##n##_write;    \
       mapper_fns_table[n].ppu_tick_callback = nop_ppu_tick_callback;
 
-    // Mapper that reacts to writes and PPU events
+    //* Mapper that reacts to writes and PPU events
     #define MAPPER_WP(n)                                                      \
       MAPPER_COMMON(n)                                                        \
       void mapper_##n##_write(uint8_t, uint16_t);                             \
@@ -55,8 +55,8 @@ void init_mappers() {
       mapper_fns_table[n].write             = mapper_##n##_write;             \
       mapper_fns_table[n].ppu_tick_callback = mapper_##n##_ppu_tick_callback;
 
-    // Mapper that reacts to reads, writes, PPU events, and has special
-    // (n)ametable mirroring (e.g. MMC5)
+    //* Mapper that reacts to reads, writes, PPU events, and has special
+    //* (n)ametable mirroring (e.g. MMC5)
     #define MAPPER_RWPN(n)                                                    \
       MAPPER_COMMON(n)                                                        \
       uint8_t mapper_##n##_read(uint16_t);                                    \
@@ -70,35 +70,35 @@ void init_mappers() {
       mapper_fns_table[n].read_nt           = mapper_##n##_read_nt;           \
       mapper_fns_table[n].write_nt          = mapper_##n##_write_nt;          \
 
-    // NROM
+    //* NROM
     MAPPER_NONE(  0)
-    // SxROM, all of which use the Nintendo MMC1
+    //* SxROM, all of which use the Nintendo MMC1
     MAPPER_W(     1)
-    // Most common configuration of the UxROM boardset
+    //* Most common configuration of the UxROM boardset
     MAPPER_W(     2)
-    // CNROM board and a very similar board used for Panesian games
+    //* CNROM board and a very similar board used for Panesian games
     MAPPER_W(     3)
-    // "iNES Mapper 004 is a wide abstraction that can represent boards using the
-    // Nintendo MMC3, Nintendo MMC6, or functional clones of any of the above. Most
-    // games utilizing TxROM, DxROM, and HKROM boards use this designation."
+    //* "iNES Mapper 004 is a wide abstraction that can represent boards using the
+    //* Nintendo MMC3, Nintendo MMC6, or functional clones of any of the above. Most
+    //* games utilizing TxROM, DxROM, and HKROM boards use this designation."
     MAPPER_WP(    4)
-    // MMC5/ExROM - Used by Castlevania III
+    //* MMC5/ExROM - Used by Castlevania III
     MAPPER_RWPN(  5)
-    // AxROM - Rare games often use this one
+    //* AxROM - Rare games often use this one
     MAPPER_W(     7)
-    // MMC2 - only used by Punch-Out!!
+    //* MMC2 - only used by Punch-Out!!
     MAPPER_WP(    9)
-    // MMC4 - very similar to MMC2
+    //* MMC4 - very similar to MMC2
     MAPPER_WP(   10)
-    // Color Dreams
+    //* Color Dreams
     MAPPER_W(    11)
-    // NES-CPROM - only used by Videomation
+    //* NES-CPROM - only used by Videomation
     MAPPER_W(    13)
-    // Action 53 multicart
+    //* Action 53 multicart
     MAPPER_W(    28)
-    // Mapper-2-ish
+    //* Mapper-2-ish
     MAPPER_W(    71)
-    // Camerica/Capcom mapper used by the Quattro * games
+    //* Camerica/Capcom mapper used by the Quattro * games
     MAPPER_W(   232)
 
     #undef MAPPER_COMMON
@@ -108,15 +108,15 @@ void init_mappers() {
     #undef MAPPER_RWPN
 }
 
-//
-// Memory mapping
-//
+//*
+//* Memory mapping
+//*
 
-// PRG is split up into four 8 KB pages to handle memory mapping. This is the
-// finest granularity switched by any mapper. These pointers point to the
-// beginning of each page.
+//* PRG is split up into four 8 KB pages to handle memory mapping. This is the
+//* finest granularity switched by any mapper. These pointers point to the
+//* beginning of each page.
 static uint8_t *prg_pages[4];
-static bool prg_page_is_ram[4]; // MMC5 can map WRAM into the $8000+ range
+static bool prg_page_is_ram[4]; //* MMC5 can map WRAM into the $8000+ range
 
 uint8_t read_prg(uint16_t addr) {
     return prg_pages[(addr >> 13) & 3][addr & 0x1FFF];
@@ -127,13 +127,13 @@ void write_prg(uint16_t addr, uint8_t val) {
         prg_pages[(addr >> 13) & 3][addr & 0x1FFF] = val;
 }
 
-// CHR is split up into eight 1 KB pages
+//* CHR is split up into eight 1 KB pages
 uint8_t *chr_pages[8];
 
 void set_prg_32k_bank(unsigned bank) {
     if (prg_16k_banks == 1) {
-        // The only configuration for a single 16k PRG bank is to be mirrored
-        // in $8000-$BFFF and $C000-$FFFF
+        //* The only configuration for a single 16k PRG bank is to be mirrored
+        //* in $8000-$BFFF and $C000-$FFFF
         prg_pages[0] = prg_pages[2] = prg_base;
         prg_pages[1] = prg_pages[3] = prg_base + 0x2000;
     }
@@ -223,15 +223,15 @@ void set_wram_6000_bank(unsigned bank) {
     wram_6000_page = wram_base + 0x2000*(bank & (wram_8k_banks - 1));
 }
 
-//
-// Mirroring
-//
+//*
+//* Mirroring
+//*
 
 Mirroring mirroring;
 
 void set_mirroring(Mirroring m) {
-    // In four-screen mode, the cart is assumed to be wired so that the mapper
-    // can't influence mirroring
+    //* In four-screen mode, the cart is assumed to be wired so that the mapper
+    //* can't influence mirroring
     if (mirroring != FOUR_SCREEN)
         mirroring = m;
 }

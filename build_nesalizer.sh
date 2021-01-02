@@ -23,7 +23,5 @@ else
 	make CONF=DEBUG || exit 2
 fi
 
-
-
 mv build/nesalizer .
 echo "Build Complete!"

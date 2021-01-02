@@ -26,7 +26,7 @@ deps        = $(addprefix $(BUILD_DIR)/,$(c_sources:=.d) $(cpp_sources:=.d))
 
 # SDL Path includes & linking libaries.
 compile_flags := -I$(MARVELL_ROOTFS)/usr/include/SDL2 -DHAVE_OPENGLES2
-LDLIBS :=  -lSDL2 -lSDL2_image -lrt -lm -lEGL -lGLESv2 -Wl,--gc-sections
+LDLIBS :=  -lSDL2 -lSDL2_image -lSDL2_ttf -lrt -lm -lEGL -lGLESv2 -Wl,--gc-sections
 
 # Steamlink Specific Stuff 
 armv7_optimizations = -marm -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -march=armv7-a -funsafe-math-optimizations
