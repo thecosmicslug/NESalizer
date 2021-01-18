@@ -11,13 +11,13 @@ SRAM support has been added for ROMs that support it - Only tested with Legend o
 NES Test ROM support has been added back, improved it a little.. now it can load a list of testroms to run through.
 Program arguments have been rewritten, No Arguments will launch the ROM Select Dialog. Other options are below
 
-'./nesalizer -f "/roms/romname.nes"' - Will Load the ROM specified.
+`./nesalizer -f "/roms/romname.nes"` - Will Load the ROM specified.
 
-'./nesalizer -t "/testlist.txt"' - Will run through the ROMs specified in the text-file.
+`./nesalizer -t "/testlist.txt"` - Will run through the ROMs specified in the text-file.
 
-'./nesalizer -n' - Override ROM detection to always choose NTSC.
+`./nesalizer -n` - Override ROM detection to always choose NTSC.
 
-'./nesalizer -p' - Override ROM detection to always choose PAL.
+`./nesalizer -p` - Override ROM detection to always choose PAL.
 
 Having finally added a method to load ROMs at runtime, I am now looking into expanding that with configurable inputs and re-add Ulf's original rewind-code now that the emulator is running at proper speed.
 
