@@ -10,6 +10,7 @@
 
 #include "save_states.h"
 #include "timing.h"
+#include "sdl_frontend.h"
 
 uint8_t *prg_base;
 unsigned prg_16k_banks;
@@ -54,13 +55,17 @@ void reload_rom() {
 
 bool load_rom(const char *filename) {
 
-    printf("Loading ROM - '%s'\n", filename);
+    if (!bRunTests){
+        printf("Loading ROM - '%s'\n", filename);
+    }
 
     size_t rom_buf_size;
     rom_buf = get_file_buffer(filename, rom_buf_size);
-
     is_pal = strstr(filename, "(E)") || strstr(filename, "PAL");
-    printf("guessing %s based on filename alone\n", is_pal ? "PAL" : "NTSC");
+
+    if (!bRunTests){
+        printf("guessing %s based on filename alone\n", is_pal ? "PAL" : "NTSC");
+    }
 
     if(rom_buf_size < 16) {
         printf("'%s' is too short to be a valid iNES file (is %zu bytes - not even enough to hold the 16-byte "
@@ -75,7 +80,10 @@ bool load_rom(const char *filename) {
 
     prg_16k_banks = rom_buf[4];
     chr_8k_banks  = rom_buf[5];
-    printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
+
+    if (!bRunTests){
+        printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
+    }
 
     if(prg_16k_banks == 0) { //* TODO: This makes sense for NES 2.0
         printf("the iNES header specifies zero banks of PRG ROM (program storage), which makes no sense");
@@ -97,9 +105,12 @@ bool load_rom(const char *filename) {
     //* Possibly updated with the high nibble below
     unsigned mapper;
     mapper = rom_buf[6] >> 4;
-
     bool const is_nes_2_0 = (rom_buf[7] & 0x0C) == 0x08;
-    printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
+
+    if (!bRunTests){
+        printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
+    }
+
     //* Assume we're dealing with a corrupted header (e.g. one containing
     //* "DiskDude!" in bytes 7-15) if the ROM is not in NES 2.0 format and bytes
     //* 12-15 are not all zero
@@ -107,11 +118,13 @@ bool load_rom(const char *filename) {
         printf("header looks corrupted (bytes 12-15 not all zero) - ignoring byte 7\n");
     else {
         is_vs_unisystem  = rom_buf[7] & 1;
-        is_playchoice_10 = rom_buf[7] & 2;
+        is_playchoice_10 = rom_buf[7] & 2;  
         mapper |= (rom_buf[7] & 0xF0);
     }
 
-    printf("mapper: %u\n", mapper);
+    if (!bRunTests){
+        printf("mapper: %u\n", mapper);
+    }
 
     if (rom_buf[6] & 8)
         //* The cart contains 2 KB of additional CIRAM (nametable memory) and uses four-screen (linear) addressing
@@ -129,9 +142,24 @@ bool load_rom(const char *filename) {
     has_bus_conflicts = false;
     do_rom_specific_overrides();
 
+    //* Here we apply our Force Region if needed.
+    if (bForcePAL)
+    {
+        is_pal=true;
+        printf("Forcing PAL Region\n");
+    }
+    else if(bForceNTSC)
+    {
+        is_pal=false;
+        printf("Forcing NTSC Region\n");
+    }
+
     //* Needs to come after a possible override
     prerender_line = is_pal ? 311 : 261;
-    printf("mirroring: %s\n", mirroring_to_str[mirroring]);
+
+    if (!bRunTests){
+        printf("mirroring: %s\n", mirroring_to_str[mirroring]);
+    }
 
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
         printf("failed to allocate %u bytes of nametable memory", mirroring == FOUR_SCREEN ? 0x1000 : 0x800);
@@ -166,41 +194,71 @@ bool load_rom(const char *filename) {
 
 
     if(is_nes_2_0) {
-        printf("NES 2.0 not yet supported");
+        if (!bRunTests){
+            printf("NES 2.0 not yet supported");
+        }
         return false;
     }
 
     if(!mapper_fns_table[mapper].init) {
-        printf("mapper %u not supported\n", mapper);
+        if (!bRunTests){
+            printf("mapper %u not supported\n", mapper);
+        }
         return false;
     }
 
     mapper_fns = mapper_fns_table[mapper];
     mapper_fns.init();
 
-    //* Needs to come first, as it sets NTSC/PAL timing parameters used by some
-    //* of the other initialization functions
     init_timing_for_rom();
-
     init_apu_for_rom();
     init_audio_for_rom();
     init_ppu_for_rom();
     init_save_states_for_rom();
 
     fname = filename;
+
+    //* Check if we should look for SRAM 
+    if(has_battery) //* Only needed for ROMs with battery
+    {
+        GUI::SetSRAMFilename();
+        FILE * pFile;
+        pFile = fopen (savename, "rb");
+        if (pFile != NULL)
+        {
+            //* LOAD SRAM BECAUSE IT EXISTS
+            size_t savesize = 8192;
+            fclose (pFile);
+            printf("Loading SRAM from '%s'\n", savename);
+            wram_6000_page = get_file_buffer(savename,savesize);
+        }else{
+            printf("No SRAM found!\n");   
+        }
+    }
+
     set_rom_loaded(true);
-    printf("ROM '%s' Loaded Successfully.\n", filename);
+
+    if (!bRunTests){
+        printf("ROM '%s' Loaded Successfully.\n", filename);
+    }
+
     return true;
 }
 
 void unload_rom() {
+    //* Save SRAM?
+    if(has_battery){
+        write_SRAM();
+    }
     //* Flush any pending audio samples
     end_audio_frame();
 
+    //* Clear Buffers
     free_array_set_null(rom_buf);
     free_array_set_null(ciram);
-    if (chr_is_ram)
+    if (chr_is_ram){
         free_array_set_null(chr_base);
+    }
     free_array_set_null(wram_base);
 
     deinit_audio_for_rom();

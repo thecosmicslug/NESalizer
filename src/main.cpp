@@ -1,4 +1,5 @@
 #include <SDL2/SDL.h>
+#include <unistd.h>
 
 #include "common.h"
 #include "apu.h"
@@ -11,9 +12,9 @@
 
 char const *program_name;
 
-
 int main(int argc, char *argv[]) {
 
+    setvbuf (stdout, NULL, _IONBF, 0);
     printf("-------------------------------------------------------\n");
     printf("---------- NESalizer-SteamLink Booted up!    ----------\n");
     printf("-------------------------------------------------------\n");
@@ -29,28 +30,63 @@ int main(int argc, char *argv[]) {
     //* Setup Audio/Video Outputs with SDL & ImGUI
     init_sdl();
     SDL_ShowCursor(SDL_DISABLE);
-    
     init_apu();
     init_mappers();
     
-    //* Check for a ROM Filename as supplied argument 
-    program_name = argv[0] ? argv[0] : "nesalizer";
-    if (argc != 2) {
-        //* No ROM supplied, Select from file dialog
-        bShowGUI=true;
-    }else{
-        if(load_rom(argv[1])){
-            GUI::SetROMStateFilename();
-            std::string tmpstr = "ROM  '";
-            tmpstr  += basename(fname);
-            tmpstr  += "'  Loaded!";
-            GUI::ShowTextOverlay(tmpstr);
-        }else{
+    //* Parsing command-line arguments first.
+    int opt;
+    while ((opt = getopt(argc, argv, "t:pnf:")) != -1) {
+        switch (opt) {
+            case 't':
+                //* Run NES Tests
+                if (optarg != NULL)
+                {
+                    testfilename = optarg;
+                    bRunTests=true;
+                    bShowGUI=false;
+                }
+                break;
+            case 'p':
+                //* Force PAL-Mode
+                if (!bForceNTSC){
+                    bForcePAL=true;
+                }else{
+                    printf("Cannot force both PAL and NTSC.. Ignoring both options\n");
+                    bForcePAL=false;
+                    bForceNTSC=false;
+                }
+                break;
+            case 'n':
+                //* Force NTSC-Mode
+                if (!bForcePAL){
+                    bForceNTSC=true;
+                }else{
+                    printf("Cannot force both PAL and NTSC.. Ignoring both options\n");
+                    bForcePAL=false;
+                    bForceNTSC=false;
+                }
+                break;
+            case 'f':
+                if (!bRunTests){
+                    //* Try Loading the supplied ROM
+                    if(load_rom(optarg)){
+                        GUI::SetROMStateFilename();
+                        std::string tmpstr = "ROM  '";
+                        tmpstr  += basename(fname);
+                        tmpstr  += "'  Loaded!";
+                        GUI::ShowTextOverlay(tmpstr);
+                        bShowGUI=false;
+                    }else{
+                        bShowGUI=true;
+                    };
+                }
+                break;
+        default:
             bShowGUI=true;
-        };
-           
+        }
     }
-   
+
+    //* Our Main Execution Loop
     while (true)
     {
         if (bShowGUI)

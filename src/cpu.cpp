@@ -17,7 +17,10 @@
 #include "rom.h"
 #include "save_states.h"
 #include "sdl_backend.h"
+#include "sdl_frontend.h"
 #include "timing.h"
+#include "test.h"
+
 
 //*
 //* Event signaling
@@ -80,6 +83,7 @@ static bool overflow;
 static uint8_t op_1;
 
 bool cpu_is_reading;
+static unsigned ticks_till_reset;
 uint8_t cpu_data_bus;
 
 //*
@@ -90,6 +94,22 @@ unsigned frame_offset;
 
 //* Down counter for adding an extra PPU tick for PAL
 static unsigned pal_extra_tick;
+
+void write_SRAM(){
+    //* write SRAM to our .sav file on ROM close.
+    printf("saving SRAM to '%s'\n", savename);
+    FILE * pFile;
+    pFile = fopen (savename, "wb");
+    if (pFile != NULL)
+    {
+        //* Write it to disk
+        fwrite (wram_6000_page , sizeof(uint8_t), 0x2000, pFile);
+        fclose (pFile);
+    }else
+    {
+        printf("failed to open '%s'\n", statename);
+    }
+}
 
 void tick()
 {
@@ -117,6 +137,12 @@ void tick()
     }
 
     tick_apu();
+
+    if(bRunTests){
+        if (ticks_till_reset > 0 && --ticks_till_reset == 0){
+            pending_reset = true;
+        }
+    }
 
     ++frame_offset;
 }
@@ -273,8 +299,19 @@ static void write_mem(uint8_t val, uint16_t addr)
         break;
 
     case 0x6000 ... 0x7FFF:
-        if (wram_6000_page)
-            wram_6000_page[addr & 0x1FFF] = val;
+        if (bRunTests){
+            //* blargg's test ROMs write the test status to $6000 and a
+            //* corresponding text string to $6004
+            if (addr == 0x6000) {
+                if (val < 0x80)
+                    report_status_and_end_test(val, (char*)wram_6000_page + 4);
+                else if (val == 0x81)
+                    //* Wait 150 ms before resetting
+                    ticks_till_reset = 0.15*cpu_clock_rate;
+            }
+        }
+        //* SRAM/WRAM/PRG RAM
+        if (wram_6000_page) wram_6000_page[addr & 0x1FFF] = val;
         break;
 
     case 0x8000 ... 0xFFFF:
@@ -918,6 +955,11 @@ static void process_pending_events()
     if (pending_frame_completion)
     {
         pending_frame_completion = false;
+
+        //* Run tests as fast as we can
+        if(bRunTests){
+            sleep_till_end_of_frame();
+        }
         draw_frame();
         end_audio_frame();
         begin_audio_frame();
@@ -941,6 +983,7 @@ void run()
     set_cpu_cold_boot_state();
     set_ppu_cold_boot_state();
 
+    init_timing();
     do_interrupt(Int_reset);
 
     for (;;)

@@ -10,6 +10,9 @@
         "args": [
           ""
         ],
+        "dependsOn": [
+        //  "Make Clean"
+        ],
         "presentation": {
           "echo": true,
           "reveal": "always",
@@ -30,9 +33,9 @@
         "args": [
           "conf=DEBUG"
         ],
-        "dependsOn": [
-          "Make Clean"
-        ],
+        //"dependsOn": [
+        //  "Make Clean"
+        //],
         "presentation": {
           "echo": true,
           "reveal": "always",

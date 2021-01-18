@@ -114,6 +114,7 @@ void transfer_input_state(uint8_t *&buf) {
         TRANSFER(cd.down_pushed)
         TRANSFER(cd.up_pushed)
     }
+    TRANSFER(reset_pushed)
 }
 
 template void transfer_input_state<true, false>(uint8_t*&);

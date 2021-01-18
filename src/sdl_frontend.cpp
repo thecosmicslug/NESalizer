@@ -1,6 +1,7 @@
 
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
+#include "SDL_mixer.h"
 
 #include <string>
 #include <csignal>
@@ -13,17 +14,33 @@
 #include "mapper.h"
 #include "rom.h"
 #include "sdl_frontend.h"
+#include "test.h"
 
 using std::string;
 
-//* Default false, we assume a ROM will be supplied, GUI if not.
-bool bShowGUI=false;
+bool bRunTests=false;
+char *testfilename;
+
+bool bForcePAL=false;
+bool bForceNTSC=false;
+bool bShowGUI=true;
 bool bShowOverlayText=false;
 
 std::string TextOverlayMSG;
 unsigned int OverlayTickCount;
 char *statename;
+char *savename;
 int statenum=0;
+
+#define NUM_WAVEFORMS 3
+const char* _waveFileNames[] =
+{
+"res/smb_bump.wav", //0
+"res/smb_coin.wav", //1
+"res/smb_pipe.wav", //2
+};
+
+Mix_Chunk* _sample[3];
 
 using std::string;
 
@@ -41,7 +58,6 @@ namespace GUI
 
 static SDL_Window *window;
 static SDL_Renderer *renderer;
-static SDL_Texture *screen_tex;
 
 static int emulation_thread(void*);
 
@@ -49,6 +65,21 @@ SDL_Texture *background;
 
 bool pause = true;
 bool exitFlag = false;
+
+void PlaySound_Pipe(){
+    //* Mario Pipe Effect - Showing GUI
+    Mix_PlayChannel(-1, _sample[2], 0);
+}
+
+void PlaySound_Coin(){
+    //* Mario Coin Effect - Positive Result
+    Mix_PlayChannel(-1, _sample[1], 0);
+}
+
+void PlaySound_Bump(){
+    //* Mario Bumping Blocks - Negative Result
+    Mix_PlayChannel(-1, _sample[0], 0);
+}
 
 void SetROMStateFilename()
 {
@@ -66,10 +97,23 @@ void SetROMStateFilename()
     printf("Setting Savestate to '%s'\n", statename);
 }
 
+void SetSRAMFilename()
+{
+    //* Strip Path , Add State folder , Replace extension
+    string filename = basename(fname);
+    string path = "saves/" + filename;
+    replaceExt(path, "sav");
+
+    //* Convert back to char-array
+    savename = new char [path.length()+1];
+    strcpy (savename, path.c_str());
+    printf("Setting SRAM file to '%s'\n", savename);
+}
+
 void ShowTextOverlay(std::string MSG)
 {
+    //* Change Message String, Update TickCount
     TextOverlayMSG=MSG;
-    printf("Showing Text Overlay MSG '%s'\n", MSG);
     bShowOverlayText=true;
     OverlayTickCount = SDL_GetTicks();
 }
@@ -108,7 +152,6 @@ void main_run()
 
     //* Get initial frame lock until ROM is chosen.
     //*SDL_LockMutex(frame_lock);                //* Commented out in Kevroots switch port
-    printf("creating emulation thread, running_state & exitFlag set\n");
     exitFlag = false;
     running_state = true;
     if(!(emu_thread = SDL_CreateThread(emulation_thread, "emulation", 0))) {
@@ -138,7 +181,6 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
     if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
     {
         printf("IMG_Init(): %s\n", IMG_GetError());
-        exit(1);
     }
 
     SDL_Surface *backSurface = IMG_Load("res/wallpaper.png");
@@ -154,8 +196,31 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
             printf("SDL_CreateTextureFromSurface(): %s\n",  SDL_GetError());
         }
     }
+
+    //* Init SDL_Mixer for our GUI Sounds
+    memset(_sample, 0, sizeof(Mix_Chunk*) * 2);
+    int result = Mix_OpenAudio(sample_rate, AUDIO_S16LSB, 2, 512);
+    if( result < 0 )
+    {
+        puts("Unable to open audio:");
+    }
+    result = Mix_AllocateChannels(4);
+    if( result < 0 )
+    {
+        puts("Unable to allocate mixing channels:");
+    }
+
+    //* Load WAVs for later
+    for( int i = 0; i < NUM_WAVEFORMS; i++ )
+    {
+        _sample[i] = Mix_LoadWAV(_waveFileNames[i]);
+        if( _sample[i] == NULL )
+        {
+            puts("Unable to load wave file");
+        }
+    }
     
-    puts("Setting up ImGui::CreateContext()\n");
+    puts("Setting up ImGui::CreateContext()");
 	ImGui::CreateContext();
 
 	//** Enable Gamepad Controls
@@ -165,7 +230,7 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
 	io.BackendFlags |= ImGuiBackendFlags_HasGamepad;
     io.IniFilename = nullptr; 
     
-    puts("Initialising  ImGuiSDL::Initialize\n");
+    puts("Initialising  ImGuiSDL::Initialize");
 	ImGuiSDL::Initialize(renderer,window, 256 , 240);
 	ImGui::StyleColorsDark();
 }
@@ -195,7 +260,8 @@ void render()
             std::string tmpstr = "ROM  '";
             tmpstr  += basename(fname);
             tmpstr  += "'  Loaded!";
-            ShowTextOverlay(tmpstr); 
+            ShowTextOverlay(tmpstr);
+            GUI::PlaySound_Coin();
             bShowGUI=false;
         };
     }
@@ -232,7 +298,11 @@ void toggle_pause()
 
 static int emulation_thread(void *)
 {
-    run();
+    if(!bRunTests){
+        run();
+    }else{
+        run_tests();
+    }
     return 0;
 }
 

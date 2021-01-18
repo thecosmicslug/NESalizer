@@ -152,9 +152,8 @@ void end_audio_frame() {
         //* No audio added; blip_end_frame() dislikes being called with an
         //* offset of 0
         return;
-
-    //* Bring the signal level at the end of the frame to zero as outlined in
-    //* set_audio_signal_level()
+        
+    //* Bring the signal level at the end of the frame to zero as outlined in set_audio_signal_level()
     set_audio_signal_level(0);
 
     blip_end_frame(blip, frame_offset);

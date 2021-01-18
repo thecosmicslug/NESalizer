@@ -1,2 +1,2 @@
-./nesalizer > nesalizer.log 2>&1
+./nesalizer > nesalizer.log
 

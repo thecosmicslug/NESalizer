@@ -20,7 +20,7 @@ extern SDL_mutex *frame_lock;
 //* Audio - Kevroots switch port uses 96k
 //int const sample_rate = 44100; 
 int const sample_rate = 96000;
-Uint16 const sdl_audio_buffer_size = 2048; 
+Uint16 const sdl_audio_buffer_size = 2048; // 1024; 
 
 //* Protect the audio buffer from concurrent access by the emulation thread and SDL
 void lock_audio();

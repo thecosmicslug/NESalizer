@@ -15,6 +15,8 @@ extern uint8_t cpu_data_bus;
 //* Offset in CPU cycles within the current frame. Used for audio generation.
 extern unsigned frame_offset;
 
+void write_SRAM();
+
 //* Runs the PPU and APU for one CPU cycle. Has external linkage so we can use
 //* it while the CPU is halted during DMA.
 void tick();

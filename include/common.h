@@ -149,30 +149,3 @@ void transfer_p(T *ptr, size_t len, uint8_t *&bufp) {
 
 #define TRANSFER(x) transfer<calculating_size, is_save>(x, buf);
 #define TRANSFER_P(x, len) transfer_p<calculating_size, is_save>(x, len, buf);
-
-//*
-//* Error reporting
-//*
-
-//* Prints a message to stderr and exits with EXIT_FAILURE
-void fail(char const *format, ...)
-  __attribute__((format(printf, 1, 2), noreturn));
-
-//* Prints a message along with errno to stderr and exits with EXIT_FAILURE
-void errno_fail(int errno_val, char const *format, ...)
-  __attribute__((format(printf, 2, 3), noreturn));
-
-#define fail_if(condition, ...) \
-    if (condition)              \
-        fail(__VA_ARGS__);
-
-#define errno_fail_if(condition, ...)   \
-    if (condition)                      \
-        errno_fail(errno, __VA_ARGS__);
-
-#define errno_val_fail_if(condition, errno_val, ...) \
-    if (condition)                                   \
-        errno_fail(errno_val, __VA_ARGS__);
-
-//* Installs a handler that prints a backtrace for some fatal signals
-void install_fatal_signal_handlers();

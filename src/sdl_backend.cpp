@@ -1,4 +1,6 @@
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_image.h>
+#include "SDL_mixer.h"
 #include <SDL_ttf.h>
 
 #include "common.h"
@@ -8,6 +10,7 @@
 #include "mapper.h"
 #include "rom.h"
 #include "save_states.h"
+#include "test.h"
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
 
@@ -99,7 +102,7 @@ static void add_controller( int device_index)
 				return;
 			}
 			controller.joystick = SDL_GameControllerGetJoystick(controller.gamepad);
-			printf("Opened game controller %s at index %d\n", SDL_GameControllerName(controller.gamepad), i);
+			printf("Opened game controller %s at index %i\n", SDL_GameControllerName(controller.gamepad), i);
 			controller.type = Controller_t::k_Gamepad;
 			controller.instance_id = SDL_JoystickInstanceID(controller.joystick);
 			return;
@@ -135,7 +138,7 @@ static void remove_controller(SDL_JoystickID instance_id)
 		}
 		if (controller.type == Controller_t::k_Gamepad) {
 			SDL_GameControllerClose(controller.gamepad);
-            printf("Closed game controller number %s\n", i);
+            printf("Closed game controller number %i\n", i);
 		}
 		controller.type = Controller_t::k_Available;
 		return;
@@ -149,8 +152,8 @@ extern void process_events() {
 
     int wheel = 0;
     int mouseX, mouseY;
-    const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
 
+    const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
     ImGuiIO& io = ImGui::GetIO();
 
     while (SDL_PollEvent(&event)) {
@@ -158,8 +161,12 @@ extern void process_events() {
         switch(event.type)
         {
             case SDL_QUIT:
+                unload_rom();
                 end_emulation();
                 exit_sdl_thread();
+                if (bRunTests){
+                    end_testing = true;
+                }
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 add_controller(event.cdevice.which);
@@ -199,6 +206,7 @@ extern void process_events() {
                             tmpstr += "' Activated.";
                             GUI::SetROMStateFilename();
                             GUI::ShowTextOverlay(tmpstr);
+                            GUI::PlaySound_Coin();
                         }
                         break;
                     case  SDL_CONTROLLER_BUTTON_Y:
@@ -214,6 +222,7 @@ extern void process_events() {
                             tmpstr += "' Activated.";
                             GUI::SetROMStateFilename();
                             GUI::ShowTextOverlay(tmpstr);
+                            GUI::PlaySound_Coin();
                         }
                         break;
                     case  SDL_CONTROLLER_BUTTON_BACK:
@@ -263,6 +272,8 @@ extern void process_events() {
                     case  SDL_CONTROLLER_BUTTON_LEFTSTICK:
                         if (!bShowGUI){
                             printf("User wants to select ROM!\n");
+                            GUI::PlaySound_Pipe();
+                            unload_rom();
                             end_emulation();
                             exit_sdl_thread();
                             GUI::stop_main_run();
@@ -272,6 +283,7 @@ extern void process_events() {
                     case  SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         //* Exit NESalizer!
                         printf("User quit!\n");
+                        unload_rom();
                         end_emulation();
                         exit_sdl_thread();
                         GUI::stop_main_run();
@@ -310,7 +322,7 @@ extern void process_events() {
                             break;
                         case  SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                             clear_button_state(controller_index_up,7);
-                            break;
+                            break; 
                     }
                 }
                 break;
@@ -340,7 +352,6 @@ extern void process_events() {
 }
 
 void sdl_thread() {
-    printf("Entering sdl_thread\n");
     int texW = 0; //* for the overlay
     int texH = 0;
     SDL_UnlockMutex(frame_lock);
@@ -358,6 +369,7 @@ void sdl_thread() {
         frame_available = ready_to_draw_new_frame = false;
         SDL_UnlockMutex(frame_lock);        //* KevRoot's port commented this out
         process_events();
+        
         //* Draw the new frame
         if(SDL_UpdateTexture(screen_tex, 0, front_buffer, 256*sizeof(Uint32))) {
             printf("failed to update screen texture: %s", SDL_GetError());
@@ -521,18 +533,56 @@ void init_sdl() {
 }
 
 void deinit_sdl() {
+
     puts("Shutting down NESalizer!");
     puts("-------------------------------------------------------");
+    
+    //* ImGUI Rom Dialog
     ImGuiSDL::Deinitialize();
+    puts("ImGuiSDL::Deinitialize()");
 	ImGui::DestroyContext();
-    SDL_DestroyRenderer(renderer); //* Also destroys the texture
-    SDL_DestroyWindow(screen);
+    puts("ImGui::DestroyContext()");
+
+    //* SDL Mutexs
     SDL_DestroyMutex(event_lock);
+    puts("SDL_DestroyMutex(event_lock)");
     SDL_DestroyMutex(frame_lock);
+    puts("SDL_DestroyMutex(frame_lock)");
     SDL_DestroyCond(frame_available_cond);
-    SDL_CloseAudioDevice(audio_device_id); //* Prolly not needed, but play it safe
+    puts("SDL_DestroyCond(frame_available_cond)");
+
+    //* GUI Overlay
     TTF_CloseFont(overlay_font);
+    puts("TTF_CloseFont(overlay_font)");
     TTF_Quit();
+    puts("TTF_Quit()");
+
+    //* GUI Sound Effects
+    Mix_Quit();
+    puts("Mix_Quit()");
+
+    //* GUI Wallpaper
+    IMG_Quit();
+    puts("IMG_Quit()");
+
+    //* Sound
+    SDL_CloseAudioDevice(audio_device_id); //* Prolly not needed, but play it safe
+    puts("SDL_CloseAudioDevice(audio_device_id)");
+
+    //* Textures & Renderer
+    SDL_DestroyTexture(screen_tex);
+    puts("SDL_DestroyTexture(screen_tex)");
+
+    SDL_DestroyRenderer(renderer); //* Also destroys the texture
+    puts("SDL_DestroyRenderer(renderer)");
+
+    SDL_DestroyWindow(screen);
+    puts("SDL_DestroyWindow(screen)");
+
+    //* Finally Quit SDL
     SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
+    puts("SDL_QuitSubSystem(SDL_INIT_EVERYTHING)");
     SDL_Quit();
+    puts("SDL_Quit()");
+    puts("-------------------------------------------------------");
 }
