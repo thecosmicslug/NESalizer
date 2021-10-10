@@ -11,8 +11,8 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 fi
 cd "${TOP}"
 
-#echo "Cleaning Build Directory.."
-#make clean
+echo "Cleaning Build Directory.."
+make clean
 
 if [ -z "$1" ]
 then
@@ -23,5 +23,17 @@ else
 	make CONF=DEBUG || exit 2
 fi
 
-mv build/nesalizer .
-echo "Build Complete!"
+echo "Packaging it for Steam-Link...."
+export DESTDIR="${PWD}/output/nesalizer-steamlink"
+
+rm output/nesalizer
+rm output/nesalizer-steamlink/nesalizer
+cp build/nesalizer output/nesalizer-steamlink
+mv build/nesalizer output/
+cd output
+
+# Pack it up
+name=$(basename ${DESTDIR})
+tar zcvf $name.tgz $name || exit 3
+
+echo "Build Complete! Check in /output/ directory."
