@@ -11,9 +11,6 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 fi
 cd "${TOP}"
 
-echo "Cleaning Build Directory.."
-make clean
-
 if [ -z "$1" ]
 then
   	echo "Building NESalizer... (Release)"

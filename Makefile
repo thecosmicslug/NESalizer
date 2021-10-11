@@ -10,8 +10,8 @@ CONF              = release
 q = @
 
 # Sources (*.c *.cpp *.h)
-cpp_sources = audio apu blip_buf common controller cpu input imgui_draw \
-  imgui imgui_tables imgui_widgets imgui_sdl imguifilesystem main md5   \
+cpp_sources = audio apu blip_buf common controller cpu input imgui/imgui_draw \
+  imgui/imgui imgui/imgui_tables imgui/imgui_widgets imgui_sdl imguifilesystem main md5   \
   mapper mapper_0 mapper_1 mapper_2 mapper_3 mapper_4 mapper_5 mapper_7 \
   mapper_9 mapper_10 mapper_11 mapper_13 mapper_28 mapper_71 mapper_232 \
   ppu rom save_states sdl_backend timing sdl_frontend test
@@ -32,11 +32,10 @@ LDLIBS :=  -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lrt -lm -lEGL -lGLESv2 -
 armv7_optimizations = -marm -mtune=cortex-a9 -mfpu=neon -mfloat-abi=hard -march=armv7-a
 
 # Tried alot of compiler options to finally get this running without lagging - Some may not be needed, but its working // -fno-exceptions -fdata-sections
-optimizations = -Ofast -pthread  -ffast-math -ffinite-math-only -funsafe-loop-optimizations\
+optimizations = -Ofast -pthread  -ffast-math -ffinite-math-only -funsafe-loop-optimizations \
 		   -fno-math-errno -falign-functions=1 -falign-loops=1 -falign-jumps=1 \
-		    -fno-unwind-tables -fno-asynchronous-unwind-tables -ftree-loop-if-convert   #\
-		  -ffunction-sections -fno-ident -fdata-sections -munaligned-access -fno-builtin  \  
-		  # -fno-align-jumps -fmerge-all-constants -fno-stack-protector -fomit-frame-pointer
+		   -fno-unwind-tables -fno-asynchronous-unwind-tables -ftree-loop-if-convert \
+		   -fno-align-jumps -fmerge-all-constants -fno-stack-protector -fomit-frame-pointer
 		  
 # Compiilation Warnings
 warnings = -Wunused -Wuninitialized -Wdisabled-optimization -Wno-switch -Wredundant-decls -ftree-loop-distribution -Wmaybe-uninitialized -Wunsafe-loop-optimizations
@@ -58,13 +57,13 @@ $(BUILD_DIR)/$(EXECUTABLE): $(objects)
 	$(q)$(CXX) $(link_flags) $^ $(LDLIBS) -o $@
 $(cpp_objects): $(BUILD_DIR)/%.o: src/%.cpp
 	@echo Compiling $<
-	$(q)$(CXX) -c -Iinclude -std=gnu++17 $(compile_flags) $(warnings) -fno-rtti  $< -o $@
+	$(q)$(CXX) -c -Isrc -std=gnu++17 $(compile_flags) $(warnings) -fno-rtti  $< -o $@
 $(c_objects): $(BUILD_DIR)/%.o: src/%.c
 	@echo Compiling $<
-	$(q)$(CC) -c -Iinclude -std=c17 $(compile_flags) $(warnings) $< -o $@
+	$(q)$(CC) -c -Isrc -std=c17 $(compile_flags) $(warnings) $< -o $@
 $(deps): $(BUILD_DIR)/%.d: src/%.cpp
 	@set -e; rm -f $@;                                                 \
-	  $(CXX) -MM -Iinclude $(shell sdl2-config --cflags) $< > $@.$$$$; \
+	  $(CXX) -MM -Isrc $(shell sdl2-config --cflags) $< > $@.$$$$; \
 	  sed 's,\($*\)\.o[ :]*,$(BUILD_DIR)/\1.o $@ : ,g' < $@.$$$$ > $@; \
 	  rm -f $@.$$$$
 ifneq ($(MAKECMDGOALS),clean)
