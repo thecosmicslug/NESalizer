@@ -11,6 +11,9 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 fi
 cd "${TOP}"
 
+mkdir build
+mkdir build/imgui
+
 if [ -z "$1" ]
 then
   	echo "Building NESalizer... (Release)"
