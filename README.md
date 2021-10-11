@@ -35,11 +35,15 @@ Having finally added a method to load ROMs at runtime, I am now looking into exp
 ## BUILDING ##
 Requires the Steamlink-SDK available on github
 
-git clone https://github.com/ValveSoftware/steamlink-sdk
-cd steamlink-sdk/examples
-git clone --recurse-submodules https://github.com/thecosmicslug/NESalizer-steamlink
-cd NESalizer-steamlink
-./build_nesalizer_steamlink.sh
+`git clone https://github.com/ValveSoftware/steamlink-sdk`
+ 
+`cd steamlink-sdk/examples`
+ 
+`git clone --recurse-submodules https://github.com/thecosmicslug/NESalizer-steamlink`
+ 
+`cd NESalizer-steamlink`
+ 
+`./build_nesalizer_steamlink.sh`
  
 ## Running ##
 ImGUI Support has been added, allowing for a File Open Dialog for selecting ROMs. Simply press the leftthumbstick in and the Dialog will show. A ROM filename can still be provided as program argument to load on startup.
