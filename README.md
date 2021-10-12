@@ -39,7 +39,7 @@ Requires the Steamlink-SDK available on github
  
 `cd steamlink-sdk/examples`
  
-`git clone --recurse-submodules https://github.com/thecosmicslug/NESalizer-steamlink`
+`git clone --recurse-submodules git@github.com:thecosmicslug/NESalizer-steamlink.git`
  
 `cd NESalizer-steamlink`
  
