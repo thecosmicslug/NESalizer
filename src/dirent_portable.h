@@ -52,6 +52,7 @@
  * The code of the alphasort(...) method and of all the other minor modifications is in the public domain.
  *
  */
+
 #if (!defined(_WIN32) && !defined(_WIN64))
 #	include <dirent.h>
 #else // #if (!defined(_WIN32) && !defined(_WIN64))
