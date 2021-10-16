@@ -4,9 +4,6 @@
 struct ImDrawData;
 struct SDL_Renderer;
 
-struct SDL_Window;
-typedef union SDL_Event SDL_Event;
-
 namespace ImGuiSDL
 {
 	// Call this to initialize the SDL renderer device that is internally used by the renderer.
