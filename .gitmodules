@@ -1,5 +1,0 @@
-[submodule "src/imgui"]
-	path = src/imgui
-	url = git@github.com:thecosmicslug/imgui.git
-	
-
