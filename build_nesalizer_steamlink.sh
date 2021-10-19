@@ -11,8 +11,8 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 fi
 cd "${TOP}"
 
-mkdir build
-mkdir build/imgui
+mkdir build 2> /dev/null || echo > /dev/null
+mkdir build/imgui 2> /dev/null || echo > /dev/null
 
 if [ -z "$1" ]
 then
@@ -26,14 +26,14 @@ fi
 echo "Packaging it for Steam-Link...."
 export DESTDIR="${PWD}/output/nesalizer-steamlink"
 
-rm output/nesalizer
-rm output/nesalizer-steamlink/nesalizer
+rm output/nesalizer 2> /dev/null || echo > /dev/null
+rm output/nesalizer-steamlink/nesalizer 2> /dev/null || echo > /dev/null
 cp build/nesalizer output/nesalizer-steamlink
 mv build/nesalizer output/
 cd output
 
 # Pack it up
 name=$(basename ${DESTDIR})
-tar zcvf $name.tgz $name || exit 3
+tar zcf $name.tgz $name || exit 3
 
 echo "Build Complete! Check in /output/ directory."

@@ -1,11 +1,12 @@
 {
   "files.exclude": {
-    "nesalizer.log": true,
     "README.md": true,
     "nesalizer": true,
     "build": true,
-    "Mario(E).state": true,
-    "res": true
+    "res": true,
+    "src/imgui": true,
+    "*.sav": true,
+    "*.nes": true
   },
   "files.associations": {
     "array": "cpp",
