@@ -35,5 +35,5 @@ cd output
 # Pack it up
 name=$(basename ${DESTDIR})
 tar zcf $name.tgz $name || exit 3
-
+rm output/nesalizer-steamlink/nesalizer 2> /dev/null || echo > /dev/null
 echo "Build Complete! Check in /output/ directory."
