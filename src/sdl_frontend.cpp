@@ -231,7 +231,8 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
     io.IniFilename = nullptr; 
     
     puts("Initialising  ImGuiSDL::Initialize");
-	ImGuiSDL::Initialize(renderer,window, 256 , 240);
+	//ImGuiSDL::Initialize(renderer,window, 256 , 240);
+    ImGui_ImplSDL2_InitForSDLRenderer(window,renderer);
 	ImGui::StyleColorsDark();
 }
 
@@ -246,13 +247,16 @@ void render()
         printf("failed to copy GUI background to render target: %s", SDL_GetError());
     }
 
-    ImGuiSDL::NewFrame(window);
+    //ImGuiSDL::NewFrame(window);
+    ImGui_ImplSDL2_NewFrame();
     ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_NoSavedSettings);
     chosenPath = dlg.chooseFileDialog(bShowGUI,"./roms/",".nes", "Choose a ROM.");
 
     ImGui::End();
     ImGui::Render();
-    ImGuiSDL::Render(ImGui::GetDrawData());
+    ImGui::GetDrawData();
+
+    //ImGuiSDL::Render(ImGui::GetDrawData());
 
     if (strlen(dlg.getChosenPath())>0) {
         if(load_rom(chosenPath)){

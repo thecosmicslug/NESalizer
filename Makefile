@@ -5,13 +5,14 @@
 EXECUTABLE        = nesalizer
 BUILD_DIR         = build
 CONF              = release
+IMGUI_DIR 	  = ./src/imgui
 
 # Don't Echo commands executed.
 q = @
 
 # Sources (*.c *.cpp *.h)
 cpp_sources = audio apu blip_buf common controller cpu input imgui/imgui \
-  imgui/imgui_draw imgui/imgui_tables imgui/imgui_widgets imgui_sdl imguifilesystem main md5   \
+  imgui/imgui_draw imgui/imgui_tables imgui/imgui_widgets imgui_impl_sdl imguifilesystem main md5   \
   mapper mapper_0 mapper_1 mapper_2 mapper_3 mapper_4 mapper_5 mapper_7 \
   mapper_9 mapper_10 mapper_11 mapper_13 mapper_28 mapper_71 mapper_232 \
   ppu rom save_states sdl_backend timing sdl_frontend test
@@ -25,7 +26,7 @@ objects     = $(c_objects) $(cpp_objects)
 deps        = $(addprefix $(BUILD_DIR)/,$(c_sources:=.d) $(cpp_sources:=.d))
 
 # SDL Path includes & linking libaries.
-compile_flags := -I$(MARVELL_ROOTFS)/usr/include/SDL2 -DHAVE_OPENGLES2
+compile_flags := -I$(MARVELL_ROOTFS)/usr/include/SDL2 -I$(IMGUI_DIR) -DHAVE_OPENGLES2
 LDLIBS :=  -lSDL2 -lSDL2_image -lSDL2_ttf -lSDL2_mixer -lrt -lm -lEGL -lGLESv2 -Wl,--gc-sections
 
 # Steamlink Specific Stuff 

@@ -4,7 +4,7 @@
     "nesalizer": true,
     "build": true,
     "res": true,
-    "src/imgui": true,
+    //"src/imgui": true,
     "*.sav": true,
     "*.nes": true
   },

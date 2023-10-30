@@ -345,7 +345,8 @@ extern void process_events() {
         io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
         io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
         io.MouseWheel = static_cast<float>(wheel);
-        ImGuiSDL::ProcessEvent(&event);
+        //ImGuiSDL::ProcessEvent(&event);
+        ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
     SDL_UnlockMutex(event_lock);
@@ -538,7 +539,8 @@ void deinit_sdl() {
     puts("-------------------------------------------------------");
     
     //* ImGUI Rom Dialog
-    ImGuiSDL::Deinitialize();
+    //ImGuiSDL::Deinitialize();
+    ImGui_ImplSDL2_Shutdown();
     puts("ImGuiSDL::Deinitialize()");
 	ImGui::DestroyContext();
     puts("ImGui::DestroyContext()");

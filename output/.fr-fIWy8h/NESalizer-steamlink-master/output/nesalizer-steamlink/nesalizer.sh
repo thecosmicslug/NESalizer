@@ -1,0 +1,2 @@
+./nesalizer > nesalizer.log
+
