@@ -12,7 +12,7 @@ q = @
 
 # Sources (*.c *.cpp *.h)
 cpp_sources = audio apu blip_buf common controller cpu input imgui/imgui \
-  imgui/imgui_draw imgui/imgui_tables imgui/imgui_widgets imgui_impl_sdl imguifilesystem main md5   \
+  imgui/imgui_draw imgui/imgui_tables imgui/imgui_widgets imgui_impl_sdl imgui_impl_sdlrenderer imguifilesystem main md5   \
   mapper mapper_0 mapper_1 mapper_2 mapper_3 mapper_4 mapper_5 mapper_7 \
   mapper_9 mapper_10 mapper_11 mapper_13 mapper_28 mapper_71 mapper_232 \
   ppu rom save_states sdl_backend timing sdl_frontend test

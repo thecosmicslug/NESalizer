@@ -16,6 +16,7 @@
 #include "sdl_frontend.h"
 #include "test.h"
 
+
 using std::string;
 
 bool bRunTests=false;
@@ -172,10 +173,10 @@ void main_run()
     }
 }
 
-void init(SDL_Window *scr, SDL_Renderer *rend)
+void init(SDL_Window* scr, SDL_Renderer* rend)
 {
-    renderer = rend;
     window = scr;
+    renderer = rend;
 
     //* Setup ImGUI Backend for our interface
     if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
@@ -232,8 +233,14 @@ void init(SDL_Window *scr, SDL_Renderer *rend)
     
     puts("Initialising  ImGuiSDL::Initialize");
 	//ImGuiSDL::Initialize(renderer,window, 256 , 240);
-    ImGui_ImplSDL2_InitForSDLRenderer(window,renderer);
-	ImGui::StyleColorsDark();
+
+    ImGui::StyleColorsDark();
+
+    // Setup Platform/Renderer backends
+    ImGui_ImplSDL2_InitForSDLRenderer(window, renderer);
+    ImGui_ImplSDLRenderer_Init(renderer);
+
+
 }
 
 //* Render ImGUI File Dialog
@@ -248,14 +255,17 @@ void render()
     }
 
     //ImGuiSDL::NewFrame(window);
+    ImGui_ImplSDLRenderer_NewFrame();
     ImGui_ImplSDL2_NewFrame();
-    ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_NoSavedSettings);
+    ImGui::NewFrame();
+    
+    ImGui::Begin("NESalizer");
     chosenPath = dlg.chooseFileDialog(bShowGUI,"./roms/",".nes", "Choose a ROM.");
 
     ImGui::End();
     ImGui::Render();
-    ImGui::GetDrawData();
 
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     //ImGuiSDL::Render(ImGui::GetDrawData());
 
     if (strlen(dlg.getChosenPath())>0) {

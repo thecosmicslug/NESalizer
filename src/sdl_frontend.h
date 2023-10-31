@@ -2,6 +2,7 @@
 
 #include "imgui/imgui.h"
 #include "imgui_impl_sdl.h"
+#include "imgui_impl_sdlrenderer.h"
 #include "imguifilesystem.h"   
 
 #include <string>
@@ -24,7 +25,7 @@ extern char *savename;
 
 namespace GUI {
 
-void init(SDL_Window * scr, SDL_Renderer * rend);
+void init(SDL_Window* scr, SDL_Renderer* rend);
 void render();
 void main_run();
 void stop_main_run();

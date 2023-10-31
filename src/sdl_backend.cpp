@@ -13,6 +13,7 @@
 #include "test.h"
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
+#include "imgui_impl_sdl.h"
 
 static SDL_Window   *screen;
 static SDL_Renderer *renderer;
@@ -530,7 +531,7 @@ void init_sdl() {
 
     //* Block until a ROM is selected
     SDL_ShowCursor(SDL_DISABLE);
-    GUI::init(screen, renderer);
+    GUI::init(screen,renderer);
 }
 
 void deinit_sdl() {
@@ -540,6 +541,8 @@ void deinit_sdl() {
     
     //* ImGUI Rom Dialog
     //ImGuiSDL::Deinitialize();
+    //ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();
     puts("ImGuiSDL::Deinitialize()");
 	ImGui::DestroyContext();

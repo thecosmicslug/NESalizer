@@ -1,3 +1,0 @@
-name=NESalizer
-icon=icon.png
-run=nesalizer.sh
