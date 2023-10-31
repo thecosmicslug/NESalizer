@@ -430,7 +430,8 @@ void init_sdl() {
     };
 
     printf("Creating SDL Window.\n");
-    if(!(screen = SDL_CreateWindow(NULL,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED , 256 , 240 , SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
+    //if(!(screen = SDL_CreateWindow(NULL,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED , 256 , 240 , SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
+    if(!(screen = SDL_CreateWindow(NULL, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP))) 
     {
         printf("failed to create window: %s", SDL_GetError());
         exit(1);
@@ -474,6 +475,9 @@ void init_sdl() {
 
     printf("SDL_SetHint to 'nearest'\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+
+    //TODO: Test scaling
+    SDL_RenderSetLogicalSize(renderer, 256, 240);
 
     printf("Creating SDL Texture\n");              
     if(!(screen_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888 , SDL_TEXTUREACCESS_STREAMING , 256 , 240))) 
