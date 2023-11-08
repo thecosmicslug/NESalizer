@@ -36,7 +36,7 @@ bool has_bus_conflicts;
 
 Mapper_fns mapper_fns;
 
-static uint8_t *rom_buf;
+uint8_t *rom_buf;
 
 bool rom_loaded;
 
@@ -56,7 +56,7 @@ void reload_rom() {
 bool load_rom(const char *filename) {
 
     if (!bRunTests){
-        printf("Loading ROM - '%s'\n", filename);
+        printf("Loading ROM '%s'\n", basename(filename));
     }
 
     size_t rom_buf_size;
@@ -161,26 +161,35 @@ bool load_rom(const char *filename) {
         printf("mirroring: %s\n", mirroring_to_str[mirroring]);
     }
 
+    //NOTE: Potential crashes here?!
+
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
         printf("failed to allocate %u bytes of nametable memory", mirroring == FOUR_SCREEN ? 0x1000 : 0x800);
         return false;
     }
 
-    if (mirroring == FOUR_SCREEN || mapper == 7)
+    puts("load_rom(): ciram = alloc_array_init");
+
+    if (mirroring == FOUR_SCREEN || mapper == 7){
         //* Assume no WRAM when four-screen, per
         //* http://*wiki.nesdev.com/w/index.php/INES_Mapper_004. Also assume no
         //* WRAM for AxROM (mapper 7) as having it breaks Battletoads & Double
         //* Dragon. No AxROM games use WRAM.
+        puts("load_rom(): wram_base = wram_6000_page = NULL;");
         wram_base = wram_6000_page = NULL;
-    else {
+    }else{
         //* iNES assumes all carts have 8 KB of WRAM. For MMC5, assume the cart
         //* has 64 KB.
+        puts("load_rom(): wram_8k_banks = (mapper == 5) ? 8 : 1;");
         wram_8k_banks = (mapper == 5) ? 8 : 1;
         if(!(wram_6000_page = wram_base = alloc_array_init<uint8_t>(0x2000*wram_8k_banks, 0xFF))) {
             printf("failed to allocate %u KB of WRAM", 8*wram_8k_banks);
             return false;
         }
+        puts("load_rom(): 'wram_base = alloc_array_init' success!");
     }
+
+    puts("load_rom(): if (mirroring == FOUR_SCREEN || mapper == 7)");
 
     if ((chr_is_ram = (chr_8k_banks == 0))) {
         //* Assume cart has 8 KB of CHR RAM, except for Videomation which has 16 KB
@@ -189,8 +198,11 @@ bool load_rom(const char *filename) {
             printf("failed to allocate %u KB of CHR RAM", 8*chr_8k_banks);
             return false;
         }
-    }
-    else chr_base = prg_base + 16*1024*prg_16k_banks;
+    }else{
+        chr_base = prg_base + 16*1024*prg_16k_banks;
+    } 
+
+    puts("load_rom(): if ((chr_is_ram = (chr_8k_banks == 0))) {");
 
 
     if(is_nes_2_0) {
@@ -200,12 +212,17 @@ bool load_rom(const char *filename) {
         return false;
     }
 
+    puts("load_rom():  if(is_nes_2_0) {");
+
+
     if(!mapper_fns_table[mapper].init) {
         if (!bRunTests){
             printf("mapper %u not supported\n", mapper);
         }
         return false;
     }
+
+    puts("load_rom():  if(!mapper_fns_table[mapper].init) {");
 
     mapper_fns = mapper_fns_table[mapper];
     mapper_fns.init();
@@ -237,15 +254,11 @@ bool load_rom(const char *filename) {
     }
 
     set_rom_loaded(true);
-
-    if (!bRunTests){
-        printf("ROM '%s' Loaded Successfully.\n", filename);
-    }
-
     return true;
 }
 
 void unload_rom() {
+
     //* Save SRAM?
     if(has_battery){
         write_SRAM();

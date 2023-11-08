@@ -12,7 +12,8 @@
 //*
 
 //* Make room for 1/6th seconds of delay
-static int16_t buf[GE_POW_2(sample_rate/6)];
+
+static int16_t buf[GE_POW_2(sample_rate/6)] __attribute__((aligned(32))) ;
 //* Indices from start_index up to but not including end_index (modulo wrapping)
 //* contain samples
 static size_t start_index = 0, end_index = 0;
@@ -36,7 +37,7 @@ static bool playback_started;
 //* equivalent to 1.3*sample_rate/frames_per_second, but a compile-time constant
 //* in C++03.)
 //* TODO: Make dependent on max_adjust.
-static int16_t blip_samples[1300*sample_rate/pal_milliframes_per_second];
+static int16_t blip_samples[1300*sample_rate/pal_milliframes_per_second] __attribute__((aligned(32)));
 
 
 void read_samples(int16_t *dst, size_t len) {
@@ -77,7 +78,7 @@ void read_samples(int16_t *dst, size_t len) {
             memset(dst + contig_avail + avail, 0, sizeof(*buf)*(len - avail));
             assert(start_index + avail == end_index);
             start_index = end_index;
-	        //*puts("audio buffer underflow!");
+	        //puts("audio buffer underflow!");
         }
     }
 }
@@ -125,7 +126,7 @@ static void write_samples(int16_t const *src, size_t len) {
             memcpy(buf + end_index, src + contig_avail, sizeof(*buf)*avail);
             assert(end_index + avail == start_index);
             end_index = start_index;
-            //*puts("audio buffer overflow!");
+            //puts("audio buffer overflow!");
         }
     }
 }
@@ -143,7 +144,9 @@ void set_audio_signal_level(int16_t level) {
     unsigned time  = frame_offset;
     int      delta = level - previous_signal_level;
 
-    blip_add_delta(blip, time, delta);
+    //TODO:Test this version.
+    //blip_add_delta(blip, time, delta);
+    blip_add_delta_fast(blip, time, delta);
     previous_signal_level = level;
 }
 
@@ -169,7 +172,6 @@ void end_audio_frame() {
     else {
         if (fill_level() >= 0.5) {
             start_audio_playback();
-	        //*audio_pause(0);
             playback_started = true;
         }
     }
@@ -180,7 +182,7 @@ void end_audio_frame() {
     //* buffer (which lacks bounds checking).
     int const avail = blip_samples_avail(blip);
     if (avail != 0) {
-        puts("Warning: didn't read all samples from blip_buf - dropping samples\n");
+        //puts("Warning: didn't read all samples from blip_buf - dropping samples");
         blip_clear(blip);
     }
 

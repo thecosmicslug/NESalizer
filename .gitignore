@@ -16,3 +16,6 @@ Mario(E).nes
 *.state8
 *.state9
 build*
+output/nesalizer
+output/nesalizer-steamlink.tgz
+output/nesalizer-steamlink/nesalizer
