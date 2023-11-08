@@ -10,13 +10,15 @@
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
 
+#define IMGUI_USER_CONFIG "nesalizer_imgui_config.h"
+
 char const *program_name;
 
 int main(int argc, char *argv[]) {
 
     setvbuf (stdout, NULL, _IONBF, 0);
     printf("-------------------------------------------------------\n");
-    printf("---------- NESalizer-SteamLink Booted up!    ----------\n");
+    printf("---------- NESalizer-SteamLink ------------------------\n");
     printf("-------------------------------------------------------\n");
 
     SDL_version sdl_compiled_version, sdl_linked_version;
@@ -39,8 +41,7 @@ int main(int argc, char *argv[]) {
         switch (opt) {
             case 't':
                 //* Run NES Tests
-                if (optarg != NULL)
-                {
+                if (optarg != NULL){
                     testfilename = optarg;
                     bRunTests=true;
                     bShowGUI=false;
@@ -71,9 +72,9 @@ int main(int argc, char *argv[]) {
                     //* Try Loading the supplied ROM
                     if(load_rom(optarg)){
                         GUI::SetROMStateFilename();
-                        std::string tmpstr = "ROM  '";
+                        std::string tmpstr = "ROM '";
                         tmpstr  += basename(fname);
-                        tmpstr  += "'  Loaded!";
+                        tmpstr  += "' Loaded!";
                         GUI::ShowTextOverlay(tmpstr);
                         bShowGUI=false;
                     }else{
@@ -81,27 +82,28 @@ int main(int argc, char *argv[]) {
                     };
                 }
                 break;
+            //TODO: Add Verbose & Extra verbose options.
         default:
             bShowGUI=true;
         }
     }
 
     //* Our Main Execution Loop
-    while (true)
-    {
-        if (bShowGUI)
-        {
+    while (true){
+
+        if (bShowGUI){
             //* Our ImGUI File Dialog
-            process_events();
+            //SDL_Delay(100);
+            process_gui_events();
             GUI::render();
-        
         }else{
             //* Run Emulation!
+            puts("main() bShowGUI = 'false'");
             GUI::main_run();
         }
     }
-
+    //* We never reach here.
     deinit_sdl();
-    printf("---- NESalizer-SteamLink Shut down cleanly!");
+    printf("---- NESalizer-SteamLink Shut down cleanly! ----------");
     printf("------------------------------------------------------");
 }
