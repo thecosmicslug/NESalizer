@@ -5,7 +5,6 @@ Mario(E).nes
 *.o
 *.sav
 *.log
-*.tgz
 *.state0
 *.state1
 *.state2
@@ -17,3 +16,4 @@ Mario(E).nes
 *.state8
 *.state9
 build*
+nesalizer*
