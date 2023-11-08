@@ -15,20 +15,24 @@
 #include "sdl_frontend.h"
 #include "imgui_impl_sdl.h"
 
-static SDL_Window   *screen;
-static SDL_Renderer *renderer;
-static SDL_Texture  *screen_tex;
-static Uint32 *front_buffer;
-static Uint32 *back_buffer;
+SDL_Window   *screen;
+SDL_Renderer *renderer;
+SDL_Texture  *screen_tex;
+
+Uint32 *back_buffer __attribute__((aligned(32)));
+
+Uint32 render_buffers[2][240*256] __attribute__((aligned(32)));
+int pitch;
 
 static bool ready_to_draw_new_frame;
 static bool frame_available;
 static bool pending_sdl_thread_exit;
+
+bool bUserQuits;
+
+static SDL_mutex *frame_lock;
+static SDL_mutex *event_lock;
 static SDL_cond  *frame_available_cond;
-
-SDL_mutex *frame_lock;
-SDL_mutex   *event_lock;
-
 static SDL_AudioDeviceID audio_device_id;
 
 //* Framerate control:
@@ -51,7 +55,7 @@ struct Controller_t
 	SDL_Joystick *joystick;
 	SDL_GameController *gamepad;
 };
-static Controller_t controllers[2];
+Controller_t controllers[2];
 
 void lock_audio() { SDL_LockAudioDevice(audio_device_id); }
 void unlock_audio() { SDL_UnlockAudioDevice(audio_device_id); }
@@ -73,26 +77,27 @@ void draw_frame() {
     SDL_LockMutex(frame_lock);
     if (ready_to_draw_new_frame) {
         frame_available = true;
-        swap(back_buffer, front_buffer);
         SDL_CondSignal(frame_available_cond);
     } else {
-        //* printf("dropping frame\n");
+        //puts("draw_frame(): dropping frame");
     }
 
     SDL_UnlockMutex(frame_lock);
+
     //* Wait to mantain framerate:
     frameTime = SDL_GetTicks() - frameStart;
     if (frameTime < DELAY) {
+        //puts("draw_frame(): calling SDL_Delay()");
         SDL_Delay((int)(DELAY - frameTime));
     }
 }
 
 static void audio_callback(void*, Uint8 *stream, int len) {
     assert(len >= 0);
-    read_samples((int16_t*)stream, len/sizeof(int16_t));
+    read_samples((int16_t*)stream , len/sizeof(int16_t));
 }
 
-static void add_controller( int device_index)
+void add_controller( int device_index)
 {
 	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
 		Controller_t &controller = controllers[i];
@@ -111,7 +116,7 @@ static void add_controller( int device_index)
 	}
 }
 
-static bool get_controller_index(SDL_JoystickID instance_id, int *controller_index)
+bool get_controller_index(SDL_JoystickID instance_id, int *controller_index)
 {
 	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
 		Controller_t &controller = controllers[i];
@@ -127,7 +132,7 @@ static bool get_controller_index(SDL_JoystickID instance_id, int *controller_ind
 	return false;
 }
 
-static void remove_controller(SDL_JoystickID instance_id)
+void remove_controller(SDL_JoystickID instance_id)
 {
 	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
 		Controller_t &controller = controllers[i];
@@ -151,12 +156,166 @@ extern void process_events() {
     SDL_LockMutex(event_lock);
     SDL_Event event;
 
-    int wheel = 0;
-    int mouseX, mouseY;
+    while (SDL_PollEvent(&event)) {
 
-    const int buttons = SDL_GetMouseState(&mouseX, &mouseY);
-    ImGuiIO& io = ImGui::GetIO();
+        //* Send events to emulation.
+        switch(event.type)
+        {
+            case SDL_CONTROLLERBUTTONDOWN:
+                int controller_index_down;
+                if (!get_controller_index(event.cbutton.which, &controller_index_down)) {
+                    break;
+                }
+                switch(event.cbutton.button)
+                {
+                    case SDL_CONTROLLER_BUTTON_A:
+                        set_button_state(controller_index_down,0);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_B:
+                        set_button_state(controller_index_down,1);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        set_button_state(controller_index_down,4);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        set_button_state(controller_index_down,5);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        set_button_state(controller_index_down,6);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        set_button_state(controller_index_down,7);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_BACK:
+                        set_button_state(controller_index_down,2);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_START:
+                        set_button_state(controller_index_down,3);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_X:
+                    {
+                        //* Change Saveslot Minus 1 
+                        if (statenum == 0){
+                            statenum = 9;
+                        }else{
+                            statenum = statenum - 1;
+                        }
+                        std::string tmpstr = "Save-State Slot '";
+                        tmpstr += std::to_string(statenum);
+                        tmpstr += "' Activated.";
+                        GUI::SetROMStateFilename();
+                        GUI::ShowTextOverlay(tmpstr);
+                        GUI::PlaySound_Coin();
+                        break;
+                    }
+                    case SDL_CONTROLLER_BUTTON_Y:
+                    {
+                        //* Change Saveslot Plus 1 
+                        if (statenum == 9){
+                            statenum = 0;
+                        }else{
+                            statenum = statenum + 1;
+                        }
+                        std::string tmpstr = "Save-State Slot '";
+                        tmpstr += std::to_string(statenum);
+                        tmpstr += "' Activated.";
+                        GUI::SetROMStateFilename();
+                        GUI::ShowTextOverlay(tmpstr);
+                        GUI::PlaySound_Coin();
+                        break;
+                    }
+                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                        //* Load State
+                        puts("user called load_state()");
+                        load_state();
+                        break;
+                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+                        //* Save State
+                        puts("user called save_state()");
+                        save_state();
+                        break;
+                    case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+                        puts("User wants to select ROM!");
+                        GUI::PlaySound_Pipe();
+                        //unload_rom();
+                        end_emulation();
+                        exit_sdl_thread();
+                        GUI::stop_main_run();
+                        bShowGUI = true;
+                        break;     
+                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                        //* Exit NESalizer!
+                        puts("User quit!");
+                        unload_rom();
+                        end_emulation();
+                        exit_sdl_thread();
+                        GUI::stop_main_run();
+                        bUserQuits = true;
+                        deinit_sdl();
+                        break;     
+                }
+                break;
+            case SDL_CONTROLLERBUTTONUP:
+                int controller_index_up;
+                if (!get_controller_index(event.cbutton.which, &controller_index_up)) {
+                    break;
+                }
+                switch(event.cbutton.button)
+                {
+                    case SDL_CONTROLLER_BUTTON_A:
+                        clear_button_state(controller_index_up,0);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_B:
+                        clear_button_state(controller_index_up,1);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+                        clear_button_state(controller_index_up,4);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                        clear_button_state(controller_index_up,5);
+                        break;
+                    case  SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                        clear_button_state(controller_index_up,6);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                        clear_button_state(controller_index_up,7);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_BACK:
+                        clear_button_state(controller_index_up,2);
+                        break;
+                    case SDL_CONTROLLER_BUTTON_START:
+                        clear_button_state(controller_index_up,3);
+                        break;
+                }
+                break;
+            case SDL_QUIT:
+                unload_rom();
+                end_emulation();
+                exit_sdl_thread();
+                if (bRunTests){
+                    end_testing = true;
+                }
+                bUserQuits = true;
+                break;
+            case SDL_CONTROLLERDEVICEADDED:
+                add_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Connected!");
+                break;
+            case SDL_CONTROLLERDEVICEREMOVED:
+                remove_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Removed!");
+                break;
+        }
 
+    }
+
+    SDL_UnlockMutex(event_lock);
+}
+
+
+extern void process_gui_events() {
+    
+    SDL_Event event;
     while (SDL_PollEvent(&event)) {
 
         switch(event.type)
@@ -168,6 +327,7 @@ extern void process_events() {
                 if (bRunTests){
                     end_testing = true;
                 }
+                bUserQuits = true;
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 add_controller(event.cdevice.which);
@@ -184,183 +344,32 @@ extern void process_events() {
                 }
                 switch(event.cbutton.button)
                 {
-                    case  SDL_CONTROLLER_BUTTON_A:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,0);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_B:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,1);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_X:
-                        if (!bShowGUI){
-                            //* Change Saveslot Minus 1 
-                            if (statenum == 0){
-                                statenum = 9;
-                            }else{
-                                statenum = statenum - 1;
-                            }
-                            std::string tmpstr = "Save-State Slot '";
-                            tmpstr += std::to_string(statenum);
-                            tmpstr += "' Activated.";
-                            GUI::SetROMStateFilename();
-                            GUI::ShowTextOverlay(tmpstr);
-                            GUI::PlaySound_Coin();
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_Y:
-                        if (!bShowGUI){
-                            //* Change Saveslot Plus 1 
-                            if (statenum == 9){
-                                statenum = 0;
-                            }else{
-                                statenum = statenum + 1;
-                            }
-                            std::string tmpstr = "Save-State Slot '";
-                            tmpstr += std::to_string(statenum);
-                            tmpstr += "' Activated.";
-                            GUI::SetROMStateFilename();
-                            GUI::ShowTextOverlay(tmpstr);
-                            GUI::PlaySound_Coin();
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_BACK:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,2);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_START:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,3);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_DPAD_UP:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,4);
-                        }
-                        break;
-                    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,5);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,6);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-                        if (!bShowGUI){
-                            set_button_state(controller_index_down,7);
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                        if (!bShowGUI){
-                            //* Load State
-                            printf("user called load_state()\n");
-                            load_state();
-                        }
-                        break;
-                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
-                        if (!bShowGUI){
-                            //* Save State
-                            printf("user called save_state()\n");
-                            save_state();
-                        }
-                        break;
-                    case  SDL_CONTROLLER_BUTTON_LEFTSTICK:
-                        if (!bShowGUI){
-                            printf("User wants to select ROM!\n");
-                            GUI::PlaySound_Pipe();
-                            unload_rom();
-                            end_emulation();
-                            exit_sdl_thread();
-                            GUI::stop_main_run();
-                            bShowGUI=true;
-                        }
-                        break;     
-                    case  SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         //* Exit NESalizer!
-                        printf("User quit!\n");
+                        puts("User quit!");
                         unload_rom();
                         end_emulation();
                         exit_sdl_thread();
                         GUI::stop_main_run();
                         deinit_sdl();
+                        bUserQuits = true;
                         break;     
-                    }
-                break;
-            case SDL_CONTROLLERBUTTONUP:
-                if (!bShowGUI){
-                    int controller_index_up;
-                    if (!get_controller_index(event.cbutton.which, &controller_index_up)) {
-                        break;
-                    }
-                    switch(event.cbutton.button)
-                    {
-                        case  SDL_CONTROLLER_BUTTON_A:
-                            clear_button_state(controller_index_up,0);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_B:
-                            clear_button_state(controller_index_up,1);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_BACK:
-                            clear_button_state(controller_index_up,2);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_START:
-                            clear_button_state(controller_index_up,3);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_DPAD_UP:
-                            clear_button_state(controller_index_up,4);
-                            break;
-                        case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
-                            clear_button_state(controller_index_up,5);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_DPAD_LEFT:
-                            clear_button_state(controller_index_up,6);
-                            break;
-                        case  SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
-                            clear_button_state(controller_index_up,7);
-                            break; 
-                    }
                 }
                 break;
-            case SDL_MOUSEWHEEL:
-				wheel = event.wheel.y;
-				break;
-            case SDL_WINDOWEVENT:
-				if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-				{
-					io.DisplaySize.x = static_cast<float>(event.window.data1);
-					io.DisplaySize.y = static_cast<float>(event.window.data2);
-				}
-				break;
         }
-    }
-
-    if (bShowGUI){
-        io.DeltaTime = 1.0f / 60.0f;
-        io.MousePos = ImVec2(static_cast<float>(mouseX), static_cast<float>(mouseY));
-        io.MouseDown[0] = buttons & SDL_BUTTON(SDL_BUTTON_LEFT);
-        io.MouseDown[1] = buttons & SDL_BUTTON(SDL_BUTTON_RIGHT);
-        io.MouseWheel = static_cast<float>(wheel);
-        //ImGuiSDL::ProcessEvent(&event);
         ImGui_ImplSDL2_ProcessEvent(&event);
     }
 
-    SDL_UnlockMutex(event_lock);
 }
 
 void sdl_thread() {
-    int texW = 0; //* for the overlay
-    int texH = 0;
-    SDL_UnlockMutex(frame_lock);
+
     for(;;) {
+
         //* Wait for the emulation thread to signal that a frame has completed
-        SDL_LockMutex(frame_lock);         //* KevRoot's port commented this out
+        SDL_LockMutex(frame_lock);
         ready_to_draw_new_frame = true;
+
         while (!frame_available && !pending_sdl_thread_exit)
             SDL_CondWait(frame_available_cond, frame_lock);
         if (pending_sdl_thread_exit) {
@@ -368,25 +377,37 @@ void sdl_thread() {
             pending_sdl_thread_exit = false;
             return;
         }
+
         frame_available = ready_to_draw_new_frame = false;
-        SDL_UnlockMutex(frame_lock);        //* KevRoot's port commented this out
+        SDL_UnlockMutex(frame_lock);
+
+        //* Check inputs.
         process_events();
+
+        //* Still mid-run.. Stop Rendering
+        if(bUserQuits){
+            return;
+        }
         
         //* Draw the new frame
-        if(SDL_UpdateTexture(screen_tex, 0, front_buffer, 256*sizeof(Uint32))) {
+        if(SDL_LockTexture(screen_tex, NULL, reinterpret_cast<void**>(&back_buffer), &pitch)){;
             printf("failed to update screen texture: %s", SDL_GetError());
             exit(1);
+        }else{
+            SDL_UnlockTexture(screen_tex);
         }
-        if(SDL_RenderCopy(renderer, screen_tex, 0, 0)) {
+        SDL_RenderClear(renderer);
+        if(SDL_RenderCopy(renderer, screen_tex, NULL, NULL)) {
             printf("failed to copy rendered frame to render target: %s", SDL_GetError());
             exit(1);
         }
         //* Check if we need to show a message onscreen
         if (bShowOverlayText){
+            int texW = 0; //* for the overlay
+            int texH = 0;
             unsigned int CurrentTickCount;
             CurrentTickCount = SDL_GetTicks();
-            if(CurrentTickCount - OverlayTickCount < 2500) //* 2.5secs
-            {
+            if(CurrentTickCount - OverlayTickCount < 2500){ //* 2.5secs
                 //* Show the overlay
                 SDL_Surface * overlay_surface = TTF_RenderText_Blended(overlay_font, TextOverlayMSG.c_str(), overlay_color);
                 SDL_Texture * overlay_texture = SDL_CreateTextureFromSurface(renderer, overlay_surface);
@@ -395,17 +416,13 @@ void sdl_thread() {
                 SDL_RenderCopy(renderer, overlay_texture, NULL, &dstrect);
                 SDL_DestroyTexture(overlay_texture);
                 SDL_FreeSurface(overlay_surface);
-            }else
-            {
+            }else{
                 //* Disable the overlay now 
                 bShowOverlayText=false;
             }
-            
-            
         } 
         SDL_RenderPresent(renderer);
     }
-    printf("Exiting sdl_thread\n");
 }
 
 void exit_sdl_thread() {
@@ -528,7 +545,7 @@ void init_sdl() {
 void deinit_sdl() {
 
     puts("Shutting down NESalizer!");
-    
+
     //* ImGUI Rom Dialog
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();

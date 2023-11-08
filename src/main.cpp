@@ -1,5 +1,4 @@
 #include <SDL2/SDL.h>
-#include <unistd.h>
 
 #include "common.h"
 #include "apu.h"
@@ -10,17 +9,13 @@
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
 
-#define IMGUI_USER_CONFIG "nesalizer_imgui_config.h"
-
-char const *program_name;
-
 int main(int argc, char *argv[]) {
 
     setvbuf (stdout, NULL, _IONBF, 0);
     printf("-------------------------------------------------------\n");
     printf("---------- NESalizer-SteamLink ------------------------\n");
     printf("-------------------------------------------------------\n");
-
+    bUserQuits = false;
     SDL_version sdl_compiled_version, sdl_linked_version;
     SDL_VERSION(&sdl_compiled_version);
     SDL_GetVersion(&sdl_linked_version);
@@ -89,16 +84,14 @@ int main(int argc, char *argv[]) {
     }
 
     //* Our Main Execution Loop
-    while (true){
+    while (!bUserQuits){
 
         if (bShowGUI){
             //* Our ImGUI File Dialog
-            //SDL_Delay(100);
             process_gui_events();
             GUI::render();
         }else{
             //* Run Emulation!
-            puts("main() bShowGUI = 'false'");
             GUI::main_run();
         }
     }

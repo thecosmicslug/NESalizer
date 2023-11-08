@@ -92,4 +92,5 @@ end:
     end_emulation();
     exit_sdl_thread();
     GUI::stop_main_run();
+    bUserQuits = true;
 }

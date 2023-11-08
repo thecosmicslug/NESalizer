@@ -1,5 +1,4 @@
 //* General utility stuff and error handling
-#pragma once
 #include <cassert>
 #include <cerrno>
 #include <climits>
@@ -9,10 +8,12 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
 //* Bring in C99 type macros
 #define __STDC_CONSTANT_MACROS
 #define __STDC_FORMAT_MACROS
 #define __STDC_LIMIT_MACROS
+
 #include <inttypes.h>
 #include <new> //* For std::nothrow
 #include <unistd.h>
@@ -24,8 +25,6 @@
 //* using std::puts;
 //* using std::size_t;
 //* ...
-
-extern char const *program_name; //* argv[0]
 
 //*
 //* General utility functions and macros

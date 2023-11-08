@@ -4,6 +4,13 @@
       "label": "build-nesalizer",
       "command": "", // Could be any other shell command
       "args": ["${workspaceFolder}/build_nesalizer_steamlink.sh"],
-      "type": "shell"
+      "type": "shell",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+    }
   }]
 }

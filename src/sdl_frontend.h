@@ -1,10 +1,8 @@
-#pragma once
 
 #include "imgui/imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_sdlrenderer.h"
 #include "imguifilesystem.h"   
-
 #include <string>
 
 extern bool bShowGUI;
