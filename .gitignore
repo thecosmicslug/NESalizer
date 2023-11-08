@@ -1,10 +1,11 @@
-nesalizer.log
 .gdbinit
 Zelda(E).nes
 Mario(E).nes
 *.d
 *.o
 *.sav
+*.log
+*.tgz
 *.state0
 *.state1
 *.state2
@@ -15,3 +16,4 @@ Mario(E).nes
 *.state7
 *.state8
 *.state9
+build*

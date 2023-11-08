@@ -2,10 +2,12 @@
   "files.exclude": {
     "README.md": true,
     "nesalizer": true,
+    "output*": true,
     "build": true,
     "res": true,
     "src/imgui": true,
     "*.sav": true,
+    "*.log": true,
     "*.nes": true
   },
   "files.associations": {
