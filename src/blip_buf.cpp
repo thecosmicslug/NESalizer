@@ -244,7 +244,7 @@ int blip_read_samples( blip_t* m, short out [], int count, int stereo )
 	return count;
 }
 
-/* Things that didn't help performance on x86:
+	/* Things that didn't help performance on x86:
 	__attribute__((aligned(128)))
 	#define short int
 	restrict
@@ -330,7 +330,7 @@ void blip_add_delta( blip_t* m, unsigned time, int delta )
 	out [15] += in[0]*delta + in[0-half_width]*delta2;
 }
 
-/*
+
 void blip_add_delta_fast( blip_t* m, unsigned time, int delta )
 {
 	unsigned fixed = (unsigned) ((time * m->factor + m->offset) >> pre_shift);
@@ -345,4 +345,3 @@ void blip_add_delta_fast( blip_t* m, unsigned time, int delta )
 	out [7] += delta * delta_unit - delta2;
 	out [8] += delta2;
 }
-*/

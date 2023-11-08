@@ -34,7 +34,7 @@ static void add_to_timespec(timespec &ts, long nano_secs) {
 
 void init_timing() {
     if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1){
-        printf("failed to fetch initial synchronization timestamp from clock_gettime()");
+        puts("failed to fetch initial synchronization timestamp from clock_gettime()");
     }
 }
 
@@ -44,9 +44,9 @@ again:
     int const res = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &clock_previous, 0);
     if (res == EINTR) goto again;
     if(res != 0){
-        printf("failed to sleep with clock_nanosleep()");
+        puts("failed to sleep with clock_nanosleep()");
     }
     if(clock_gettime(CLOCK_MONOTONIC, &clock_previous) == -1){
-        printf("failed to fetch synchronization timestamp from clock_gettime()");
+        puts("failed to fetch synchronization timestamp from clock_gettime()");
     }
 }

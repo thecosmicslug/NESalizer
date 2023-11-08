@@ -108,13 +108,13 @@ void free_array_set_null(T *p) {
     p = 0;
 }
 
-#ifdef OPTIMIZING
-#  define UNREACHABLE __builtin_unreachable();
-#else
-#  define UNREACHABLE                              \
-     fail("reached \"unreachable\" code at %s:%u", \
-           __FILE__, (unsigned)__LINE__);
-#endif
+//#ifdef OPTIMIZING
+# define UNREACHABLE __builtin_unreachable();
+//#else
+//#  define UNREACHABLE                              \
+//    fail("reached \"unreachable\" code at %s:%u", \
+//           __FILE__, (unsigned)__LINE__);
+//#endif
 
 //* State serialization and deserialization helpers
 
