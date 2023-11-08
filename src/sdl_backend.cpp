@@ -418,20 +418,20 @@ void exit_sdl_thread() {
 //* Initialization and de-initialization
 void init_sdl() {
 
-    printf("Initialising SDL.\n");
+    puts("Initialising SDL.");
     if(SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) != 0)
     {
         printf("failed to initialize SDL: %s", SDL_GetError());
         exit(1);
     }
 
+     SDL_ShowCursor(SDL_DISABLE);
+
     if(SDL_GameControllerAddMappingsFromFile("res/gamecontrollerdb.txt") == -1){
         printf("SDL_GameControllerAddMappingsFromFile(): %s", SDL_GetError());
     };
 
-    printf("Creating SDL Window.\n");
-    //if(!(screen = SDL_CreateWindow(NULL,SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED , 256 , 240 , SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
-    if(!(screen = SDL_CreateWindow(NULL, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 0, 0, SDL_WINDOW_FULLSCREEN_DESKTOP))) 
+    if(!(screen = SDL_CreateWindow(NULL, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256, 240, SDL_WINDOW_FULLSCREEN_DESKTOP | SDL_WINDOW_OPENGL))) 
     {
         printf("failed to create window: %s", SDL_GetError());
         exit(1);
@@ -443,8 +443,7 @@ void init_sdl() {
         exit(1);  
     }
 
-    printf("Creating SDL Renderer.\n");
-    if(!(renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE | SDL_RENDERER_PRESENTVSYNC))) 
+    if(!(renderer = SDL_CreateRenderer(screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_TARGETTEXTURE ))) //// | SDL_RENDERER_PRESENTVSYNC))) 
     {
         printf("failed to create rendering context: %s", SDL_GetError());
         exit(1);
@@ -452,7 +451,6 @@ void init_sdl() {
 
     //* Display some information about the renderer
     SDL_RendererInfo renderer_info;
-    printf("Getting Renderer Info\n");
     if (SDL_GetRendererInfo(renderer, &renderer_info))
         puts("Failed to get renderer information from SDL");
     else {
@@ -466,42 +464,36 @@ void init_sdl() {
             puts("renderer: uses vsync");
         if (renderer_info.flags & SDL_RENDERER_TARGETTEXTURE)
             puts("renderer: supports rendering to texture");
-        printf("renderer: available texture formats:");
+            puts("renderer: available texture formats:");
         unsigned const n_texture_formats = min(16u, (unsigned)renderer_info.num_texture_formats);
         for (unsigned i = 0; i < n_texture_formats; ++i)
             printf(" %s", SDL_GetPixelFormatName(renderer_info.texture_formats[i]));
         putchar('\n');
     }
 
-    printf("SDL_SetHint to 'nearest'\n");
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
 
-    //TODO: Test scaling
-    SDL_RenderSetLogicalSize(renderer, 256, 240);
-
-    printf("Creating SDL Texture\n");              
     if(!(screen_tex = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888 , SDL_TEXTUREACCESS_STREAMING , 256 , 240))) 
     {
         printf("failed to create texture for screen: %s", SDL_GetError());
         exit(1);
     }
 
-    static Uint32 render_buffers[2][240*256];
     back_buffer  = render_buffers[0];
-    front_buffer = render_buffers[1];
 
     //* Audio
     SDL_AudioSpec want;
     SDL_AudioSpec got;
 
     want.freq     = sample_rate; 
-    want.format   = AUDIO_S16LSB;  //* AUDIO_S16SYS in original - AUDIO_S16LSB in kevtroots switch port
+    want.format   = AUDIO_S16SYS;  //* AUDIO_S16LSB in kevtroots switch port
+
     want.channels = 1;
     want.samples  = sdl_audio_buffer_size;
     want.callback = audio_callback;
 
-    printf("Opening SDL Audio Device\n");
-    audio_device_id = SDL_OpenAudioDevice(0, 0, &want, &got, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    puts("Opening SDL Audio Device");
+    audio_device_id = SDL_OpenAudioDevice(NULL, 0, &want, &got, SDL_AUDIO_ALLOW_ANY_CHANGE);
     
     printf("freq: %i, %i\n", want.freq, got.freq);
     printf("format: %i, %i\n", want.format, got.format);
@@ -509,18 +501,15 @@ void init_sdl() {
     printf("samples: %i, %i\n", want.samples, got.samples);
     
     //* SDL thread synchronization
-    printf("Creating 'event_lock' Mutex\n");
     if(!(event_lock = SDL_CreateMutex())) {
         printf("failed to create event mutex: %s", SDL_GetError());
         exit(1);
     }
-    printf("Creating 'frame_lock' Mutex\n");
     if(!(frame_lock = SDL_CreateMutex())) {
         printf("failed to create frame mutex: %s", SDL_GetError());
         exit(1);
     }
    
-    printf("Setting 'frame_available_cond' condition.\n");
     if(!(frame_available_cond = SDL_CreateCond())) {
         printf("failed to create frame condition variable: %s", SDL_GetError());
         exit(1);
@@ -533,65 +522,42 @@ void init_sdl() {
         printf("TTF_OpenFont: %s\n", TTF_GetError());
     }
 
-    //* Block until a ROM is selected
-    SDL_ShowCursor(SDL_DISABLE);
     GUI::init(screen,renderer);
 }
 
 void deinit_sdl() {
 
     puts("Shutting down NESalizer!");
-    puts("-------------------------------------------------------");
     
     //* ImGUI Rom Dialog
-    //ImGuiSDL::Deinitialize();
-    //ImGui_ImplSDL2_Shutdown();
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();
-    puts("ImGuiSDL::Deinitialize()");
 	ImGui::DestroyContext();
-    puts("ImGui::DestroyContext()");
 
     //* SDL Mutexs
     SDL_DestroyMutex(event_lock);
-    puts("SDL_DestroyMutex(event_lock)");
     SDL_DestroyMutex(frame_lock);
-    puts("SDL_DestroyMutex(frame_lock)");
     SDL_DestroyCond(frame_available_cond);
-    puts("SDL_DestroyCond(frame_available_cond)");
 
     //* GUI Overlay
     TTF_CloseFont(overlay_font);
-    puts("TTF_CloseFont(overlay_font)");
     TTF_Quit();
-    puts("TTF_Quit()");
 
     //* GUI Sound Effects
     Mix_Quit();
-    puts("Mix_Quit()");
 
     //* GUI Wallpaper
     IMG_Quit();
-    puts("IMG_Quit()");
 
     //* Sound
     SDL_CloseAudioDevice(audio_device_id); //* Prolly not needed, but play it safe
-    puts("SDL_CloseAudioDevice(audio_device_id)");
 
     //* Textures & Renderer
     SDL_DestroyTexture(screen_tex);
-    puts("SDL_DestroyTexture(screen_tex)");
-
     SDL_DestroyRenderer(renderer); //* Also destroys the texture
-    puts("SDL_DestroyRenderer(renderer)");
-
     SDL_DestroyWindow(screen);
-    puts("SDL_DestroyWindow(screen)");
 
     //* Finally Quit SDL
     SDL_QuitSubSystem(SDL_INIT_EVERYTHING);
-    puts("SDL_QuitSubSystem(SDL_INIT_EVERYTHING)");
     SDL_Quit();
-    puts("SDL_Quit()");
-    puts("-------------------------------------------------------");
 }
