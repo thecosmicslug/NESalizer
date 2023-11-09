@@ -88,7 +88,7 @@ int main(int argc, char *argv[]) {
 
         if (bShowGUI){
             //* Our ImGUI File Dialog
-            process_gui_events();
+            GUI::process_inputs();
             GUI::render();
         }else{
             //* Run Emulation!

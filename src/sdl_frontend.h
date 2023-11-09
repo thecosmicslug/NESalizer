@@ -24,10 +24,10 @@ extern char *savename;
 namespace GUI {
 
 void init(SDL_Window* scr, SDL_Renderer* rend);
+void process_inputs();
 void render();
 void main_run();
 void stop_main_run();
-void unload_rom();
 
 bool saveScreenshot(const std::string &file);
 void SetROMStateFilename();

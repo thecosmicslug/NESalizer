@@ -1,5 +1,5 @@
 #pragma once
-#define IMGUI_USER_CONFIG "./nesalizer_imgui_config.h"
+#define IMGUI_USER_CONFIG "../nesalizer_imgui_config.h"
 
 //* Video, audio, and input backend. Uses SDL2.
 #include <SDL2/SDL.h>
@@ -12,7 +12,9 @@ void deinit_sdl();
 //* SDL rendering thread. Runs separately from the emulation thread.
 void sdl_thread();
 extern void process_events();
-extern void process_gui_events();
+extern void add_controller( int device_index);
+extern void remove_controller(SDL_JoystickID instance_id);
+extern bool get_controller_index(SDL_JoystickID instance_id, int *controller_index);
 
 void put_pixel(unsigned x, unsigned y, uint32_t color);
 void draw_frame();

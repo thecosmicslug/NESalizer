@@ -144,6 +144,16 @@ void main_run(){
     puts("Emulation Finished.");
 }
 
+static int emulation_thread(void *){
+
+    if(!bRunTests){
+        run();
+    }else{
+        run_tests();
+    }
+    return 0;
+}
+
 void init(SDL_Window* scr, SDL_Renderer* rend){
 
     window = scr;
@@ -206,6 +216,59 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
     ImGui_ImplSDLRenderer_Init(renderer);
 }
 
+//* Process Inputs
+void process_inputs() {
+    
+    SDL_Event event;
+    while (SDL_PollEvent(&event)) {
+
+        switch(event.type)
+        {
+            case SDL_QUIT:
+                unload_rom();
+                end_emulation();
+                exit_sdl_thread();
+                if (bRunTests){
+                    end_testing = true;
+                }
+                bUserQuits = true;
+                break;
+            case SDL_CONTROLLERDEVICEADDED:
+                add_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Connected!");
+                break;
+            case SDL_CONTROLLERDEVICEREMOVED:
+                remove_controller(event.cdevice.which);
+                GUI::ShowTextOverlay("Controller Removed!");
+                break;
+            case SDL_CONTROLLERBUTTONDOWN:
+                int controller_index_down;
+                if (!get_controller_index(event.cbutton.which, &controller_index_down)) {
+                    break;
+                }
+                switch(event.cbutton.button)
+                {
+                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
+                        //* Exit NESalizer!
+                        puts("User quit!");
+                        if (bRunTests){
+                            end_testing = true;
+                        }
+                        unload_rom();
+                        end_emulation();
+                        exit_sdl_thread();
+                        GUI::stop_main_run();
+                        deinit_sdl();
+                        bUserQuits = true;
+                        break;     
+                }
+                break;
+        }
+        ImGui_ImplSDL2_ProcessEvent(&event);
+    }
+
+}
+
 //* Render ImGUI File Dialog
 void render(){
     
@@ -242,16 +305,6 @@ void render(){
     
     SDL_RenderPresent(renderer);
 
-}
-
-static int emulation_thread(void *){
-
-    if(!bRunTests){
-        run();
-    }else{
-        run_tests();
-    }
-    return 0;
 }
 
 }

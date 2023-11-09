@@ -44,16 +44,16 @@ static void run_test(char const *file) {
 void run_tests() {
 
     //* These can't be automated as easily:
-    //*   cpu_dummy_reads
-    //*   sprite_hit_tests_2005.10.05
-    //*   sprite_overflow_tests
+    //   cpu_dummy_reads
+    //   sprite_hit_tests_2005.10.05
+    //   sprite_overflow_tests
     //*
     //* Tests that require manual inspection:
-    //*   dpcm_letterbox
-    //*   nmi_sync
+    //   dpcm_letterbox
+    //   nmi_sync
     //*
     //* Look into these too:
-    //*   dmc_tests
+    //   dmc_tests
 
     //* Do it like this to avoid extra newlines being printed when aborting testing
     #define RUN_TEST(file) run_test(file); if (end_testing) goto end;
@@ -63,15 +63,18 @@ void run_tests() {
     unsigned int currentTime, TimeTaken;
     StartAllTestTime = SDL_GetTicks();
 
+    //* Read the ROM list one line at a time.
     std::ifstream file(testfilename);
     if (file.is_open()) {
         std::string line;
         while (std::getline(file, line)) {
+            //* Run the Test ROM
             RUN_TEST(line.c_str());
         }
         file.close();
     }
 
+    //* Log Timing
     currentTime = SDL_GetTicks();
     TimeTaken = currentTime - StartAllTestTime;
 
@@ -79,18 +82,21 @@ void run_tests() {
     printf("NES Tests Complete!\n");
     printf("TOTAL Time Taken: %d secs\n", TimeTaken / 1000);
 
-    bRunTests=false;
-    bShowGUI=true;
-
-    end_emulation();
-    exit_sdl_thread();
-    GUI::stop_main_run();
-    return;
-    #undef RUN_TEST
-
-end:
+    //* End of the Tests
     end_emulation();
     exit_sdl_thread();
     GUI::stop_main_run();
     bUserQuits = true;
+    return;
+
+    #undef RUN_TEST
+
+end:
+    //* premature quit
+    end_emulation();
+    exit_sdl_thread();
+    GUI::stop_main_run();
+    if (bRunTests){
+        bUserQuits = true;
+    }
 }

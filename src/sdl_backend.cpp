@@ -237,7 +237,11 @@ extern void process_events() {
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
                         puts("User wants to select ROM!");
                         GUI::PlaySound_Pipe();
-                        //unload_rom();
+                        if (bRunTests){
+                            puts("NES ROM Test disabled!");
+                            bRunTests = false;
+                            end_testing = true;
+                        }
                         end_emulation();
                         exit_sdl_thread();
                         GUI::stop_main_run();
@@ -246,6 +250,9 @@ extern void process_events() {
                     case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         //* Exit NESalizer!
                         puts("User quit!");
+                        if (bRunTests){
+                            end_testing = true;
+                        }
                         unload_rom();
                         end_emulation();
                         exit_sdl_thread();
@@ -312,56 +319,6 @@ extern void process_events() {
     SDL_UnlockMutex(event_lock);
 }
 
-
-extern void process_gui_events() {
-    
-    SDL_Event event;
-    while (SDL_PollEvent(&event)) {
-
-        switch(event.type)
-        {
-            case SDL_QUIT:
-                unload_rom();
-                end_emulation();
-                exit_sdl_thread();
-                if (bRunTests){
-                    end_testing = true;
-                }
-                bUserQuits = true;
-                break;
-            case SDL_CONTROLLERDEVICEADDED:
-                add_controller(event.cdevice.which);
-                GUI::ShowTextOverlay("Controller Connected!");
-                break;
-            case SDL_CONTROLLERDEVICEREMOVED:
-                remove_controller(event.cdevice.which);
-                GUI::ShowTextOverlay("Controller Removed!");
-                break;
-            case SDL_CONTROLLERBUTTONDOWN:
-                int controller_index_down;
-                if (!get_controller_index(event.cbutton.which, &controller_index_down)) {
-                    break;
-                }
-                switch(event.cbutton.button)
-                {
-                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-                        //* Exit NESalizer!
-                        puts("User quit!");
-                        unload_rom();
-                        end_emulation();
-                        exit_sdl_thread();
-                        GUI::stop_main_run();
-                        deinit_sdl();
-                        bUserQuits = true;
-                        break;     
-                }
-                break;
-        }
-        ImGui_ImplSDL2_ProcessEvent(&event);
-    }
-
-}
-
 void sdl_thread() {
 
     for(;;) {
@@ -396,6 +353,7 @@ void sdl_thread() {
         }else{
             SDL_UnlockTexture(screen_tex);
         }
+
         SDL_RenderClear(renderer);
         if(SDL_RenderCopy(renderer, screen_tex, NULL, NULL)) {
             printf("failed to copy rendered frame to render target: %s", SDL_GetError());
