@@ -10,35 +10,31 @@
 
 #include "save_states.h"
 #include "timing.h"
-#include "sdl_frontend.h"
+#include "sdl_backend.h"
 
 uint8_t *prg_base;
 unsigned prg_16k_banks;
-
 uint8_t *chr_base;
 unsigned chr_8k_banks;
-bool chr_is_ram;
-
 uint8_t *wram_base;
 unsigned wram_8k_banks;
 
-const char *fname;
-
 bool is_pal;
-
 bool has_battery;
 bool has_trainer;
-
 bool is_vs_unisystem;
 bool is_playchoice_10;
-
 bool has_bus_conflicts;
+bool chr_is_ram;
+bool rom_loaded;
 
 Mapper_fns mapper_fns;
 
 uint8_t *rom_buf;
+const char *fname;
 
-bool rom_loaded;
+//* SRAM savefile
+char *savename;
 
 char const *const mirroring_to_str[N_MIRRORING_MODES] =
   { "horizontal",
@@ -49,8 +45,21 @@ char const *const mirroring_to_str[N_MIRRORING_MODES] =
 
 static void do_rom_specific_overrides();
 
-void reload_rom() {
-    load_rom(fname);
+void SetSRAMFilename(char const *romfile){
+    //* Strip Path , Add State folder , Replace extension
+    string filename = basename(romfile);
+    string path = "saves/" + filename;
+    replaceExt(path, "sav");
+
+    //* Convert back to char-array
+    savename = new char [path.length()+1];
+    strcpy (savename, path.c_str());
+
+}
+
+char* const GetSRAMFilename(){
+    //* Strip Path , Add State folder , Replace extension
+    return savename;
 }
 
 bool load_rom(const char *filename) {
@@ -85,7 +94,7 @@ bool load_rom(const char *filename) {
         printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
     }
 
-    if(prg_16k_banks == 0) { //* TODO: This makes sense for NES 2.0
+    if(prg_16k_banks == 0) { //NOTE: This makes sense for NES 2.0
         printf("the iNES header specifies zero banks of PRG ROM (program storage), which makes no sense");
         return false;
     }
@@ -107,8 +116,10 @@ bool load_rom(const char *filename) {
     mapper = rom_buf[6] >> 4;
     bool const is_nes_2_0 = (rom_buf[7] & 0x0C) == 0x08;
 
-    if (!bRunTests){
-        printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
+    if (bVerbose){
+        if (!bRunTests){
+            printf(is_nes_2_0 ? "in NES 2.0 format\n" : "in iNES format\n");
+        }
     }
 
     //* Assume we're dealing with a corrupted header (e.g. one containing
@@ -122,9 +133,12 @@ bool load_rom(const char *filename) {
         mapper |= (rom_buf[7] & 0xF0);
     }
 
-    if (!bRunTests){
-        printf("mapper: %u\n", mapper);
+    if (bVerbose){
+        if (!bRunTests){
+            printf("mapper: %u\n", mapper);
+        }
     }
+
 
     if (rom_buf[6] & 8)
         //* The cart contains 2 KB of additional CIRAM (nametable memory) and uses four-screen (linear) addressing
@@ -132,8 +146,12 @@ bool load_rom(const char *filename) {
     else
         mirroring = rom_buf[6] & 1 ? VERTICAL : HORIZONTAL;
 
-    if ((has_battery = rom_buf[6] & 2)) printf("has battery\n");
-    if ((has_trainer = rom_buf[6] & 4)) printf("has trainer\n");
+    if (bVerbose){
+        if ((has_battery = rom_buf[6] & 2)) printf("has battery\n");
+    }
+    if (bVerbose){
+        if ((has_trainer = rom_buf[6] & 4)) printf("has trainer\n");
+    }
 
     //* Set pointers, allocate memory areas, and do misc. setup
     prg_base = rom_buf + 16 + 512*has_trainer;
@@ -157,8 +175,10 @@ bool load_rom(const char *filename) {
     //* Needs to come after a possible override
     prerender_line = is_pal ? 311 : 261;
 
-    if (!bRunTests){
-        printf("mirroring: %s\n", mirroring_to_str[mirroring]);
+    if (bVerbose){
+        if (!bRunTests){
+            printf("mirroring: %s\n", mirroring_to_str[mirroring]);
+        }
     }
 
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
@@ -224,7 +244,7 @@ bool load_rom(const char *filename) {
     //* Check if we should look for SRAM 
     if(has_battery) //* Only needed for ROMs with battery
     {
-        GUI::SetSRAMFilename();
+        SetSRAMFilename(filename);
         FILE * pFile;
         pFile = fopen (savename, "rb");
         if (pFile != NULL)
@@ -232,10 +252,14 @@ bool load_rom(const char *filename) {
             //* LOAD SRAM BECAUSE IT EXISTS
             size_t savesize = 8192;
             fclose (pFile);
-            printf("Loading SRAM from '%s'\n", savename);
+            if (bVerbose){
+                printf("Loading SRAM from '%s'\n", savename);
+            }
             wram_6000_page = get_file_buffer(savename,savesize);
         }else{
-            printf("No SRAM found!\n");   
+            if (bVerbose){
+                printf("No SRAM found!\n");
+            }
         }
     }
 

@@ -11,7 +11,7 @@ if [ "${MARVELL_ROOTFS}" = "" ]; then
 fi
 cd "${TOP}"
 
-rm -r build 2> /dev/null || echo > /dev/null
+# rm -r build 2> /dev/null || echo > /dev/null
 mkdir build 2> /dev/null || echo > /dev/null
 mkdir build/imgui 2> /dev/null || echo > /dev/null
 

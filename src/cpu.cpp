@@ -16,11 +16,10 @@
 #include "ppu.h"
 #include "rom.h"
 #include "save_states.h"
-#include "sdl_backend.h"
-#include "sdl_frontend.h"
 #include "timing.h"
 #include "test.h"
-
+#include "sdl_backend.h"
+#include "sdl_frontend.h"
 
 //*
 //* Event signaling
@@ -97,9 +96,12 @@ static unsigned pal_extra_tick;
 
 void write_SRAM(){
     //* write SRAM to our .sav file on ROM close.
-    printf("saving SRAM to '%s'\n", savename);
+    if (bVerbose){
+        printf("saving SRAM to '%s'\n", GetSRAMFilename());
+    }
+    
     FILE * pFile;
-    pFile = fopen (savename, "wb");
+    pFile = fopen (GetSRAMFilename(), "wb");
     if (pFile != NULL)
     {
         //* Write it to disk
@@ -107,7 +109,7 @@ void write_SRAM(){
         fclose (pFile);
     }else
     {
-        printf("failed to open '%s'\n", statename);
+        printf("failed to open '%s'\n", GetSRAMFilename());
     }
 }
 
@@ -209,9 +211,7 @@ uint8_t read_mem(uint16_t addr)
 
 static void write_mem(uint8_t val, uint16_t addr)
 {
-    //* TODO: The write probably takes effect earlier within the CPU cycle than
-    //* after the three PPU ticks and the one APU tick
-
+    //NOTE: The write probably takes effect earlier within the CPU cycle than after the three PPU ticks and the one APU tick.
     write_tick();
 
     cpu_data_bus = val;
@@ -532,13 +532,11 @@ static void branch_if(bool cond)
     if (cond)
     {
         read_mem(pc); //* Dummy read
-        //* TODO: Unsafe unsigned->signed conversion - likely to work in
-        //* practice
+        //TODO: Unsafe unsigned->signed conversion - likely to work in practice
         uint16_t const new_pc = pc + (int8_t)op_1;
         if ((pc ^ new_pc) & 0x100)
         { //* Page crossing?
-            //* Branch instructions perform additional interrupt polling during
-            //* the fixup tick
+            //* Branch instructions perform additional interrupt polling during the fixup tick
             poll_for_interrupt();
             read_mem((pc & 0xFF00) | (new_pc & 0x00FF)); //* Dummy read
         }
@@ -988,17 +986,16 @@ void run()
 
     for (;;)
     {
-        while (!running_state)
-        {
-            //*printf("Running state in paused mode\n");
+        while (!running_state){
+            //* Show GUI when paused;
+            GUI::process_inputs();
+            GUI::render();
         }
-        if (pending_event)
-        {
+
+        if (pending_event){
             pending_event = false;
             process_pending_events();
-
-            if (pending_end_emulation)
-            {
+            if (pending_end_emulation){
                 return;
             }
         }

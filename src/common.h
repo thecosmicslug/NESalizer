@@ -8,6 +8,8 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <csignal>
+#include <iostream>
 
 //* Bring in C99 type macros
 #define __STDC_CONSTANT_MACROS
@@ -18,17 +20,11 @@
 #include <new> //* For std::nothrow
 #include <unistd.h>
 
-//* TODO: The C++ standard strictly puts identifiers from the <c*> headers in
-//* the std namespace. In practice they nearly always end up in the global
-//* namespace as well.
-//* using std::printf;
-//* using std::puts;
-//* using std::size_t;
-//* ...
-
 //*
 //* General utility functions and macros
 //*
+using std::string;
+void replaceExt(string& s, const string& newExt);
 
 bool is_pow_2_or_0(unsigned n);
 uint8_t rev_byte(uint8_t n);

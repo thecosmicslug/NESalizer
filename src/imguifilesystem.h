@@ -65,7 +65,7 @@ x> Never tested on a real Windows OS and on MacOS.
 #include <imgui.h>
 #endif //IMGUI_API
 
-// TODO: Remove this definition: it doesn't work on some systems (= Windows AFAIK)
+//WARNING: Remove this definition: it doesn't work on some systems (= Windows AFAIK)
 //#define IMGUIFS_NO_EXTRA_METHODS    // optional, but it makes this header lighter...
 #ifndef IMGUIFS_NO_EXTRA_METHODS
 #   include <stdint.h>             // this is included by imgui.cpp, and the following headers might redefine incorrectly some types otherwise.

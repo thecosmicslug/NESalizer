@@ -25,16 +25,17 @@
 
 #include "imgui/imgui.h"
 #include "imgui_impl_sdlrenderer.h"
+
 #if defined(_MSC_VER) && _MSC_VER <= 1500 // MSVC 2008 or earlier
-#include <stddef.h>     // intptr_t
+    #include <stddef.h>     // intptr_t
 #else
-#include <stdint.h>     // intptr_t
+    #include <stdint.h>     // intptr_t
 #endif
 
 // SDL
 #include <SDL.h>
 #if !SDL_VERSION_ATLEAST(2,0,17)
-#error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
+    #error This backend requires SDL 2.0.17+ because of SDL_RenderGeometry() function
 #endif
 
 // SDL_Renderer data
@@ -88,7 +89,6 @@ static void ImGui_ImplSDLRenderer_SetupRenderState()
 	ImGui_ImplSDLRenderer_Data* bd = ImGui_ImplSDLRenderer_GetBackendData();
 
 	// Clear out any viewports and cliprect set by the user
-    // FIXME: Technically speaking there are lots of other things we could backup/setup/restore during our render process.
 	SDL_RenderSetViewport(bd->SDLRenderer, NULL);
 	SDL_RenderSetClipRect(bd->SDLRenderer, NULL);
 }

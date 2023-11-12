@@ -6,7 +6,6 @@
 //* loading right (tested by the sprdma_and_dmc_dma tests).
 
 extern bool cpu_is_reading;
-
 extern bool running_state;
 
 //* Last value put on the CPU data bus. Used to implement open bus reads.

@@ -8,7 +8,8 @@
 #include <fstream>
 
 bool end_testing;
-static char const *filename;
+char const *current_filename;
+char *testlist_filename;
 
 unsigned int StartAllTestTime = 0, currentTestTime;
 
@@ -21,11 +22,11 @@ void report_status_and_end_test(uint8_t status, char const *msg) {
     TimeTaken = currentTime - currentTestTime;
 
     if (status == 0){
-        printf("%-60s OK\n", filename);
+        printf("%-60s OK\n", current_filename);
         printf("Time Taken: %dms\n", TimeTaken);
 
     }else{
-        printf("%-60s FAILED\nvvv TEST OUTPUT START vvv\n%s\n^^^ TEST OUTPUT END ^^^\n", filename, msg);
+        printf("%-60s FAILED\nvvv TEST OUTPUT START vvv\n%s\n^^^ TEST OUTPUT END ^^^\n", current_filename, msg);
         printf("Time Taken: %dms\n", TimeTaken);
     }
 
@@ -34,7 +35,7 @@ void report_status_and_end_test(uint8_t status, char const *msg) {
 
 static void run_test(char const *file) {
     currentTestTime = SDL_GetTicks();
-    filename = file;
+    current_filename = file;
     GUI::ShowTextOverlay(file);
     load_rom(file);
     run();
@@ -58,13 +59,13 @@ void run_tests() {
     //* Do it like this to avoid extra newlines being printed when aborting testing
     #define RUN_TEST(file) run_test(file); if (end_testing) goto end;
 
-    printf("Running NES tests from: %s\n", testfilename);
+    printf("Running NES tests from: %s\n", testlist_filename);
 
     unsigned int currentTime, TimeTaken;
     StartAllTestTime = SDL_GetTicks();
 
     //* Read the ROM list one line at a time.
-    std::ifstream file(testfilename);
+    std::ifstream file(testlist_filename);
     if (file.is_open()) {
         std::string line;
         while (std::getline(file, line)) {
@@ -82,21 +83,18 @@ void run_tests() {
     printf("NES Tests Complete!\n");
     printf("TOTAL Time Taken: %d secs\n", TimeTaken / 1000);
 
-    //* End of the Tests
-    end_emulation();
-    exit_sdl_thread();
-    GUI::stop_main_run();
+    //* End of Testing
+    GUI::StopEmulation();
     bUserQuits = true;
     return;
 
     #undef RUN_TEST
 
 end:
-    //* premature quit
-    end_emulation();
-    exit_sdl_thread();
-    GUI::stop_main_run();
+    //* Premature end of testing.
+    GUI::StopEmulation();
     if (bRunTests){
+        //* Double-check it wasnt cancelled mid-run
         bUserQuits = true;
     }
 }

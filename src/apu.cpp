@@ -753,9 +753,7 @@ void init_apu_for_rom() {
     //*   http://*wiki.nesdev.com/w/index.php/APU_Frame_Counter
     //*   http://*forums.nesdev.com/viewtopic.php?t=9011
     //*
-    //* TODO: Docs specify 20780 for the final clock in PAL mode, but 20782
-    //* makes tests pass (including for the next clock after that). Investigate
-    //* further.
+    //NOTE: Docs specify 20780 for the final clock in PAL mode, but 20782  makes tests pass (including for the next clock after that).
 
     if (is_pal) {
         clock_frame_counter =

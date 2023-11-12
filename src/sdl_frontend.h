@@ -1,39 +1,37 @@
+//* ImGUI Config
+#define IMGUI_USER_CONFIG "nesalizer_imgui_config.h"
 
 #include "imgui/imgui.h"
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_sdlrenderer.h"
-#include "imguifilesystem.h"   
-#include <string>
+#include "imguifilesystem.h" 
 
-extern bool bShowGUI;
-extern bool bShowOverlayText;
 extern unsigned int OverlayTickCount;
 extern std::string TextOverlayMSG;
 
-extern bool bRunTests;
-extern char *testfilename;
-
-extern bool bForcePAL;
-extern bool bForceNTSC;
-
-extern char *statename;
-extern int statenum;
-extern char *savename;
-
+extern bool bShowGUI;
+extern bool bShowOverlayText;
 
 namespace GUI {
 
 void init(SDL_Window* scr, SDL_Renderer* rend);
+void deinit();
 void process_inputs();
 void render();
-void main_run();
-void stop_main_run();
 
-bool saveScreenshot(const std::string &file);
-void SetROMStateFilename();
-void SetSRAMFilename();
+bool LoadROM(const char *filename);
+void StopEmulation();
+void TogglePauseEmulation();
 void ShowTextOverlay(std::string MSG);
+void IncreaseStateSlot();
+void DecreaseStateSlot();
+void LoadState();
+void SaveState();
+
 void PlaySound_Coin();
 void PlaySound_Bump();
 void PlaySound_Pipe();
+
+bool saveScreenshot(const std::string &file);
+
 }

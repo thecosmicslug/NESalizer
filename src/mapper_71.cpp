@@ -3,7 +3,7 @@
 #include "common.h"
 #include "mapper.h"
 
-//* TODO: This mapper has variants that work differently
+//NOTE: This mapper has variants that work differently
 
 static uint8_t prg_bank;
 

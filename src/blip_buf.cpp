@@ -244,11 +244,12 @@ int blip_read_samples( blip_t* m, short out [], int count, int stereo )
 	return count;
 }
 
-	/* Things that didn't help performance on x86:
+	//NOTE: Things that didn't help performance on x86:
+	/*
 	__attribute__((aligned(128)))
 	#define short int
 	restrict
-*/
+	*/
 
 /* Sinc_Generator( 0.9, 0.55, 4.5 ) */
 static short const bl_step [phase_count + 1] [half_width] =

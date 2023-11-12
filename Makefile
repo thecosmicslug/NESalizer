@@ -34,7 +34,7 @@ armv7_optimizations_old = -marm -mtune=cortex-a9 -mcpu=cortex-a9 -mfpu=neon -mfl
 armv7_optimizations = -marm -mfpu=neon -mfloat-abi=hard
 
 # From the original nesalizer code.
-nesalizer_original_optimizations = -Ofast -funsafe-loop-optimizations -fno-exceptions
+nesalizer_original_optimizations = -Ofast -funsafe-loop-optimizations # -fno-exceptions
 		   
 # Trying to speed up emulation on steamlink
 new_optimizations = -ffast-math -funsafe-math-optimizations -fno-stack-protector -fomit-frame-pointer  
