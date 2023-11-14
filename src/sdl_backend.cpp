@@ -187,8 +187,6 @@ void RunEmulation(){
 
 static int emulation_thread(void *){
 
-    puts("emulation_thread() started.");
-
     if(!bRunTests){
         if (bExtraVerbose){
             puts("emulation_thread() started, calling run().");
@@ -273,8 +271,8 @@ extern void process_events() {
                         GUI::SaveState();
                         break;
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+                        GUI::GetEmulationBackground();
                         puts("User Opened GUI");
-                       // GUI::PlaySound_Pipe();
                         GUI::PlaySound_UI(UI_SMB_PIPE);
                         GUI::TogglePauseEmulation();
                         if (bRunTests){

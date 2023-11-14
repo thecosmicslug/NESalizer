@@ -41,7 +41,8 @@ SDL_Color overlay_color = {255,255,0}; //* YELLOW
 
 Mix_Chunk* _sample[3];
 
-SDL_Texture *background;
+SDL_Texture *game_background;
+SDL_Texture *nes_background;
 SDL_Renderer *GUIrenderer;
 
 using std::string;
@@ -50,23 +51,11 @@ namespace GUI
 {
 
 bool PlaySound_UI(UISound effect){
-    Mix_PlayChannel(-1, _sample[effect], 0);
+    if(!Mix_PlayChannel(-1, _sample[effect], 0)){
+        //printf("Unable to play WAV file: %s\n", Mix_GetError());
+        return false;
+    };
     return true;
-}
-
-void PlaySound_Pipe(){
-    //* Mario Pipe Effect - Showing GUI
-    Mix_PlayChannel(-1, _sample[2], 0);
-}
-
-void PlaySound_Coin(){
-    //* Mario Coin Effect - Positive Result
-    Mix_PlayChannel(-1, _sample[1], 0);
-}
-
-void PlaySound_Bump(){
-    //* Mario Bumping Blocks - Negative Result
-    Mix_PlayChannel(-1, _sample[0], 0);
 }
 
 void SetROMStateFilename(){
@@ -96,7 +85,6 @@ void SaveState(){
         tmpstr += basename(statename);
         tmpstr  += "'  Saved!";
         ShowTextOverlay(tmpstr);
-        //PlaySound_Coin();
         GUI::PlaySound_UI(UI_SMB_COIN);
 
     }else{
@@ -105,7 +93,6 @@ void SaveState(){
         tmpstr += basename(statename);
         tmpstr += "'";
         ShowTextOverlay(tmpstr);
-        //PlaySound_Bump();
         GUI::PlaySound_UI(UI_SMB_BUMP);
     };
 
@@ -119,7 +106,6 @@ void LoadState(){
         std::string tmpstr = "State  '";
         tmpstr += basename(statename);
         tmpstr += "'  Loaded!";
-        //PlaySound_Coin();
         GUI::PlaySound_UI(UI_SMB_COIN);
         ShowTextOverlay(tmpstr);
 
@@ -129,7 +115,6 @@ void LoadState(){
         tmpstr += basename(statename);
         tmpstr += "'  Not Found!";
         ShowTextOverlay(tmpstr);
-        //PlaySound_Bump();
         GUI::PlaySound_UI(UI_SMB_BUMP);
     };
 }
@@ -147,8 +132,6 @@ void IncreaseStateSlot(){
     tmpstr += std::to_string(statenum);
     tmpstr += "' Activated.";
     SetROMStateFilename();
-    ShowTextOverlay(tmpstr);
-    //PlaySound_Coin();
     GUI::PlaySound_UI(UI_SMB_COIN);
 }
 
@@ -164,7 +147,6 @@ void DecreaseStateSlot(){
     tmpstr += "' Activated.";
     SetROMStateFilename();
     ShowTextOverlay(tmpstr);
-    //PlaySound_Coin();
     GUI::PlaySound_UI(UI_SMB_COIN);
 }
 
@@ -210,6 +192,34 @@ bool saveScreenshot(const std::string &file) {
   return true;
 }
 
+bool GetEmulationBackground() {
+
+    SDL_Rect _viewport;
+    SDL_Surface *_surface = NULL;
+    SDL_RenderGetViewport(GUIrenderer, &_viewport);
+    _surface = SDL_CreateRGBSurface( 0, _viewport.w, _viewport.h, 32, 0, 0, 0, 0 );
+
+    if ( _surface == NULL ) {
+        std::cout << "Cannot create SDL_Surface: " << SDL_GetError() << std::endl;
+        return false;
+    }
+
+    if ( SDL_RenderReadPixels(GUIrenderer, NULL, _surface->format->format, _surface->pixels, _surface->pitch ) != 0 ) {
+        std::cout << "Cannot read data from SDL_Renderer: " << SDL_GetError() << std::endl;
+        SDL_FreeSurface(_surface);
+        return false;
+    }
+
+    game_background = SDL_CreateTextureFromSurface(GUIrenderer, _surface);
+    if (!game_background) {
+        printf("GetEmulationBackground(): SDL_CreateTextureFromSurface failed! %s\n", SDL_GetError());
+    }
+
+    SDL_FreeSurface(_surface);
+
+    return true;
+}
+
 void StopEmulation(){
 
     if (bExtraVerbose){
@@ -233,9 +243,15 @@ void StopEmulation(){
 void TogglePauseEmulation(){
 
     if (running_state){
+        if (bVerbose){
+            puts("running_state = 'false'");
+        }
         running_state = false;
         bShowGUI = true;
     }else{
+        if (bVerbose){
+            puts("running_state = 'true'");
+        }
         bShowGUI = false;
         running_state = true;
     }
@@ -289,9 +305,9 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
     }
     else
     {
-        background = SDL_CreateTextureFromSurface(GUIrenderer, backSurface);
+        nes_background = SDL_CreateTextureFromSurface(GUIrenderer, backSurface);
         SDL_FreeSurface(backSurface);
-        if (!background){
+        if (!nes_background){
             printf("SDL_CreateTextureFromSurface(): %s\n",  SDL_GetError());
         }
     }
@@ -389,14 +405,16 @@ void process_inputs() {
                         break; 
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
                         //* Load GUI
+                        if (game_background){
+                            SDL_DestroyTexture(game_background);
+                            game_background = nullptr;
+                        }
                         if (bRunTests){
                             puts("User returned to tests.");
-                            //PlaySound_Pipe();
                             GUI::PlaySound_UI(UI_SMB_PIPE);
                             TogglePauseEmulation();
                         }else if (is_rom_loaded()){
                             puts("User returned to game.");
-                            //PlaySound_Pipe();
                             GUI::PlaySound_UI(UI_SMB_PIPE);
                             TogglePauseEmulation();
                         }
@@ -420,8 +438,14 @@ void render(){
     };
 
     SDL_RenderClear(GUIrenderer);
-    if(SDL_RenderCopy(GUIrenderer, background, NULL, NULL)) {
-        printf("failed to copy GUI background to render target: %s", SDL_GetError());
+    if (!game_background){
+        if(SDL_RenderCopy(GUIrenderer, nes_background, NULL, NULL)) {
+            printf("failed to copy GUI background to render target: %s", SDL_GetError());
+        }
+    }else{
+        if(SDL_RenderCopy(GUIrenderer, game_background, NULL, NULL)) {
+            printf("failed to copy GUI background to render target: %s", SDL_GetError());
+        }
     }
 
     ImGui_ImplSDLRenderer_NewFrame();
@@ -474,8 +498,8 @@ void render(){
             unload_rom();
         }
         if(LoadROM(dlg.getChosenPath())){
-            //PlaySound_Coin();
             GUI::PlaySound_UI(UI_SMB_COIN);
+            //TogglePauseEmulation();
             running_state = true;
             bShowGUI = false;
         };

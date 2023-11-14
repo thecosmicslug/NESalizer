@@ -36,6 +36,7 @@ void LoadState();
 void SaveState();
 void Shutdown();
 
+bool GetEmulationBackground();
 bool PlaySound_UI(UISound effect);
 bool saveScreenshot(const std::string &file);
 
