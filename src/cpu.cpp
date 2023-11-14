@@ -94,24 +94,7 @@ unsigned frame_offset;
 //* Down counter for adding an extra PPU tick for PAL
 static unsigned pal_extra_tick;
 
-void write_SRAM(){
-    //* write SRAM to our .sav file on ROM close.
-    if (bVerbose){
-        printf("saving SRAM to '%s'\n", GetSRAMFilename());
-    }
-    
-    FILE * pFile;
-    pFile = fopen (GetSRAMFilename(), "wb");
-    if (pFile != NULL)
-    {
-        //* Write it to disk
-        fwrite (wram_6000_page , sizeof(uint8_t), 0x2000, pFile);
-        fclose (pFile);
-    }else
-    {
-        printf("failed to open '%s'\n", GetSRAMFilename());
-    }
-}
+
 
 void tick()
 {
@@ -1898,8 +1881,7 @@ void run()
         case K10:
         case K11:
             puts("KIL instruction executed, system hung");
-            end_emulation();
-            exit_sdl_thread();
+            GUI::StopEmulation();
         }
     }
 }

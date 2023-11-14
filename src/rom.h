@@ -30,6 +30,9 @@ bool load_rom(const char *filename);
 void unload_rom();
 bool is_rom_loaded();
 void set_rom_loaded(bool loaded);
+const char* rom_filename();
 
+void read_SRAM();
+void write_SRAM();
 void SetSRAMFilename(char const *romfile);
-char* const GetSRAMFilename();
+

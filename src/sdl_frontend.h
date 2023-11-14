@@ -12,6 +12,13 @@ extern std::string TextOverlayMSG;
 extern bool bShowGUI;
 extern bool bShowOverlayText;
 
+enum UISound
+{
+    UI_SMB_BUMP = 0,
+    UI_SMB_COIN = 1,
+    UI_SMB_PIPE = 2,
+};
+
 namespace GUI {
 
 void init(SDL_Window* scr, SDL_Renderer* rend);
@@ -27,11 +34,9 @@ void IncreaseStateSlot();
 void DecreaseStateSlot();
 void LoadState();
 void SaveState();
+void Shutdown();
 
-void PlaySound_Coin();
-void PlaySound_Bump();
-void PlaySound_Pipe();
-
+bool PlaySound_UI(UISound effect);
 bool saveScreenshot(const std::string &file);
 
 }

@@ -26,12 +26,13 @@ const char *loaded_rom_name;
 char *statename;
 int statenum=0;
 
+//* UI Sounds
 #define NUM_WAVEFORMS 3
 const char* _waveFileNames[] =
 {
-"res/smb_bump.wav", //0
-"res/smb_coin.wav", //1
-"res/smb_pipe.wav", //2
+    "res/smb_bump.wav", //0
+    "res/smb_coin.wav", //1
+    "res/smb_pipe.wav", //2
 };
 
 //* Onscreen Text Overlay
@@ -43,12 +44,15 @@ Mix_Chunk* _sample[3];
 SDL_Texture *background;
 SDL_Renderer *GUIrenderer;
 
-static ImGuiFs::Dialog dlg;
-
 using std::string;
 
 namespace GUI
 {
+
+bool PlaySound_UI(UISound effect){
+    Mix_PlayChannel(-1, _sample[effect], 0);
+    return true;
+}
 
 void PlaySound_Pipe(){
     //* Mario Pipe Effect - Showing GUI
@@ -92,7 +96,8 @@ void SaveState(){
         tmpstr += basename(statename);
         tmpstr  += "'  Saved!";
         ShowTextOverlay(tmpstr);
-        PlaySound_Coin();
+        //PlaySound_Coin();
+        GUI::PlaySound_UI(UI_SMB_COIN);
 
     }else{
 
@@ -100,7 +105,8 @@ void SaveState(){
         tmpstr += basename(statename);
         tmpstr += "'";
         ShowTextOverlay(tmpstr);
-        PlaySound_Bump();
+        //PlaySound_Bump();
+        GUI::PlaySound_UI(UI_SMB_BUMP);
     };
 
 }
@@ -113,7 +119,8 @@ void LoadState(){
         std::string tmpstr = "State  '";
         tmpstr += basename(statename);
         tmpstr += "'  Loaded!";
-        PlaySound_Coin();
+        //PlaySound_Coin();
+        GUI::PlaySound_UI(UI_SMB_COIN);
         ShowTextOverlay(tmpstr);
 
     }else{
@@ -122,7 +129,8 @@ void LoadState(){
         tmpstr += basename(statename);
         tmpstr += "'  Not Found!";
         ShowTextOverlay(tmpstr);
-        PlaySound_Bump();
+        //PlaySound_Bump();
+        GUI::PlaySound_UI(UI_SMB_BUMP);
     };
 }
 
@@ -140,7 +148,8 @@ void IncreaseStateSlot(){
     tmpstr += "' Activated.";
     SetROMStateFilename();
     ShowTextOverlay(tmpstr);
-    PlaySound_Coin();
+    //PlaySound_Coin();
+    GUI::PlaySound_UI(UI_SMB_COIN);
 }
 
 void DecreaseStateSlot(){
@@ -155,7 +164,8 @@ void DecreaseStateSlot(){
     tmpstr += "' Activated.";
     SetROMStateFilename();
     ShowTextOverlay(tmpstr);
-    PlaySound_Coin();
+    //PlaySound_Coin();
+    GUI::PlaySound_UI(UI_SMB_COIN);
 }
 
 void ShowTextOverlay(std::string MSG){
@@ -201,23 +211,33 @@ bool saveScreenshot(const std::string &file) {
 }
 
 void StopEmulation(){
+
+    if (bExtraVerbose){
+        puts("calling end_emulation().");
+    }
     end_emulation();
+
+    if (bExtraVerbose){
+        puts("calling exit_sdl_thread().");
+    }
     exit_sdl_thread();
+    
+    if (bExtraVerbose){
+        puts("StopEmulation(): exitFlag = 'true'.");
+    }
     exitFlag = true;
+
 }
 
 //* Play/stop the emulation. 
 void TogglePauseEmulation(){
-    //TODO: TogglePauseEmulation() needs testing
-    if (running_state)
-    {
-        //SDL_LockMutex(frame_lock);
+
+    if (running_state){
         running_state = false;
         bShowGUI = true;
     }else{
         bShowGUI = false;
         running_state = true;
-        //SDL_UnlockMutex(frame_lock);
     }
 
 }
@@ -280,18 +300,18 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
     memset(_sample, 0, sizeof(Mix_Chunk*) * 2);
     int result = Mix_OpenAudio(sample_rate, AUDIO_S16SYS, 1, 1024);
     if( result < 0 ){
-        puts("Unable to open audio:");
+        printf("Mix_OpenAudio: Unable to open audio: %s\n",Mix_GetError());
     }
     result = Mix_AllocateChannels(4);
     if( result < 0 ){
-        puts("Unable to allocate mixing channels:");
+        printf("Mix_AllocateChannels: Unable to allocate mixing channels: %s\n",Mix_GetError());
     }
 
     //* Load WAVs for later
     for( int i = 0; i < NUM_WAVEFORMS; i++ ){
         _sample[i] = Mix_LoadWAV(_waveFileNames[i]);
         if( _sample[i] == NULL ){
-            puts("Unable to load wave file");
+            printf("Mix_LoadWAV: Unable to load '.wav' file  %s\n",Mix_GetError());
         }
     }
     
@@ -305,7 +325,7 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;    // Hide Mouse Cursor
+    io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;   // Hide Mouse Cursor 
     io.IniFilename = nullptr;
 
     ImGui::StyleColorsDark();
@@ -335,20 +355,17 @@ void deinit(){
 void process_inputs() {
     
     SDL_Event event;
-    SDL_LockMutex(event_lock);
+    if(SDL_TryLockMutex(event_lock)){
+        puts("process_inputs(): SDL_TryLockMutex failed!");
+        return;
+    };
 
     while (SDL_PollEvent(&event)) {
 
         switch(event.type)
         {
             case SDL_QUIT:
-                unload_rom();
-                end_emulation();
-                exit_sdl_thread();
-                if (bRunTests){
-                    end_testing = true;
-                }
-                bUserQuits = true;
+                GUI::Shutdown();
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 add_controller(event.cdevice.which);
@@ -368,18 +385,21 @@ void process_inputs() {
                     case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         //* Exit NESalizer!
                         puts("User quit!");
-                        if (bRunTests){
-                            end_testing = true;
-                            break;
-                        }
-                        unload_rom();
-                        StopEmulation();
-                        bUserQuits = true;
+                        GUI::Shutdown();
                         break; 
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
-                        puts("User returned to game.");
-                        PlaySound_Pipe();
-                        TogglePauseEmulation();
+                        //* Load GUI
+                        if (bRunTests){
+                            puts("User returned to tests.");
+                            //PlaySound_Pipe();
+                            GUI::PlaySound_UI(UI_SMB_PIPE);
+                            TogglePauseEmulation();
+                        }else if (is_rom_loaded()){
+                            puts("User returned to game.");
+                            //PlaySound_Pipe();
+                            GUI::PlaySound_UI(UI_SMB_PIPE);
+                            TogglePauseEmulation();
+                        }
                         break;    
                 }
                 break;
@@ -394,7 +414,10 @@ void process_inputs() {
 //* Render ImGUI File Dialog
 void render(){
 
-    const char* chosenPath;
+    if(SDL_TryLockMutex(frame_lock)){
+        puts("GUI::render(): SDL_TryLockMutex failed!");
+        return;
+    };
 
     SDL_RenderClear(GUIrenderer);
     if(SDL_RenderCopy(GUIrenderer, background, NULL, NULL)) {
@@ -405,39 +428,86 @@ void render(){
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
     
-    ImGui::Begin("NESalizer");
-    chosenPath = dlg.chooseFileDialog(bShowGUI,"./roms/",".nes", "Choose a ROM.");
+    ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_NoSavedSettings);
+    ImGui::Text("NESalizer for the Steam Link - Ported by TheCosmicSlug.");      
+
+    //* Display current ROM info.
+
+    if (is_rom_loaded()){
+        ImGui::Text("Current ROM: '%s'.", basename(rom_filename()));
+    }else{
+        ImGui::Text("Current ROM: <none loaded>.");
+    }
+
+    //* GUI File Dialog
+    static ImGuiFs::Dialog dlg;
+    bool browseButtonPressed = false;
+    if (ImGui::Button("Open ROM..")){
+        browseButtonPressed = true;
+    }
+
+    const bool SaveStateButtonPressed = ImGui::Button("Save State"); 
+    const bool LoadStateButtonPressed = ImGui::Button("Load State"); 
+    const bool SettingsButtonPressed = ImGui::Button("Options"); 
+    const bool AboutButtonPressed = ImGui::Button("About"); 
+    const bool QuitButtonPressed = ImGui::Button("Exit NESalizer!"); 
+
+    const char* chosenPath;
+    chosenPath = dlg.chooseFileDialog(browseButtonPressed,"./roms/",".nes", "Choose a ROM.");
 
     ImGui::End();
     ImGui::Render();
 
-    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
+    //* Load a new ROM?
+    if (strlen(chosenPath)>0) {
 
-    //* Load a new ROM
-    if (strlen(dlg.getChosenPath())>0) {
-
-        //TODO: Still need to fix exiting NES tests early.
         if (bRunTests){
-            puts("NES ROM Test disabled!");
+            puts("NES ROM Tests disabled!");
             bRunTests = false;
             end_testing = true;
-        }
-
-        if(is_rom_loaded()){
-            //* Unload any existing ROM
-            unload_rom();
             StopEmulation();
+            unload_rom();
         }
- 
-        if(LoadROM(chosenPath)){
-            PlaySound_Coin();
+        else if(is_rom_loaded()){
+            //* Unload any existing ROM
+            StopEmulation();
+            unload_rom();
+        }
+        if(LoadROM(dlg.getChosenPath())){
+            //PlaySound_Coin();
+            GUI::PlaySound_UI(UI_SMB_COIN);
             running_state = true;
             bShowGUI = false;
         };
     }
-    
+
+    //* Quit?
+    if (QuitButtonPressed){
+        Shutdown();
+    }
+
+    ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
+
     SDL_RenderPresent(GUIrenderer);
 
+    SDL_UnlockMutex(frame_lock);
+
+}
+
+void Shutdown(){
+    
+    //* Shut Everything Down
+    if (bRunTests){
+        end_testing = true;
+    }
+    if(is_rom_loaded()){
+        unload_rom();
+        running_state = true;
+    }
+
+    StopEmulation();
+    bUserQuits = true;
+    exitFlag = true;
 }
 
 }

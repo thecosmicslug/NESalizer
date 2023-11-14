@@ -34,11 +34,20 @@ void report_status_and_end_test(uint8_t status, char const *msg) {
 }
 
 static void run_test(char const *file) {
+
+    //* Time the test
     currentTestTime = SDL_GetTicks();
     current_filename = file;
+
+    //* Show Overlay UI
     GUI::ShowTextOverlay(file);
+
+    //* Run Test
     load_rom(file);
     run();
+    if (end_testing){
+        return;
+    }
     unload_rom();
 }
 
@@ -70,31 +79,27 @@ void run_tests() {
         std::string line;
         while (std::getline(file, line)) {
             //* Run the Test ROM
+            if (end_testing) goto end;
             RUN_TEST(line.c_str());
         }
         file.close();
     }
 
-    //* Log Timing
+    //* Log Output
     currentTime = SDL_GetTicks();
     TimeTaken = currentTime - StartAllTestTime;
-
     GUI::ShowTextOverlay("NES Tests Complete!");
-    printf("NES Tests Complete!\n");
-    printf("TOTAL Time Taken: %d secs\n", TimeTaken / 1000);
+    printf("NES Tests Complete in %d secs.\n", TimeTaken / 1000);
 
     //* End of Testing
     GUI::StopEmulation();
-    bUserQuits = true;
+    bRunTests = false;
+    bShowGUI = true;
     return;
 
     #undef RUN_TEST
 
 end:
     //* Premature end of testing.
-    GUI::StopEmulation();
-    if (bRunTests){
-        //* Double-check it wasnt cancelled mid-run
-        bUserQuits = true;
-    }
+    puts("run_tests() finished early.");
 }

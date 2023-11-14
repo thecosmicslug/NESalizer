@@ -71,6 +71,7 @@
 #else
 #define SDL_HAS_CAPTURE_AND_GLOBAL_MOUSE    0
 #endif
+
 #define SDL_HAS_MOUSE_FOCUS_CLICKTHROUGH    SDL_VERSION_ATLEAST(2,0,5)
 #define SDL_HAS_VULKAN                      SDL_VERSION_ATLEAST(2,0,6)
 

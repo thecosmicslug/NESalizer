@@ -83,9 +83,9 @@ void draw_frame() {
         frame_available = true;
         SDL_CondSignal(frame_available_cond);
     } else {
-        if (bExtraVerbose){
-            puts("draw_frame(): dropping frame");
-        }
+        //if (!bRunTests && bExtraVerbose){
+        //    puts("draw_frame(): dropping frame");
+        //}
     }
 
     SDL_UnlockMutex(frame_lock);
@@ -94,9 +94,9 @@ void draw_frame() {
     frameTime = SDL_GetTicks() - frameStart;
     if (frameTime < DELAY) {
         SDL_Delay((int)(DELAY - frameTime));
-        if (bExtraVerbose){
-            puts("draw_frame(): calling SDL_Delay()");
-        }
+        //if (!bRunTests && bExtraVerbose){
+        //    puts("draw_frame(): calling SDL_Delay()");
+        //}
     }
 }
 
@@ -162,11 +162,12 @@ void remove_controller(SDL_JoystickID instance_id)
 void RunEmulation(){
 
     SDL_Thread *emu_thread;
-    puts("Starting Emulation.");
-
+    if (bExtraVerbose){
+        puts("RunEmulation() called.");
+    }
+    
     exitFlag = false;
     running_state = true;
-    //TODO: testing pause with running_state.
     if(!(emu_thread = SDL_CreateThread(emulation_thread, "emulation", 0))) {
         printf("failed to create emulation thread: %s\n", SDL_GetError());
         exit(1);
@@ -182,22 +183,35 @@ void RunEmulation(){
         }
     }
     running_state = false;
-    puts("Emulation Finished.");
 }
 
 static int emulation_thread(void *){
 
+    puts("emulation_thread() started.");
+
     if(!bRunTests){
+        if (bExtraVerbose){
+            puts("emulation_thread() started, calling run().");
+        }
         run();
     }else{
+        if (bExtraVerbose){
+            puts("emulation_thread() started, calling run_tests().");
+        }
         run_tests();
+    }
+    if (bExtraVerbose){
+        puts("emulation_thread() complete.");
     }
     return 0;
 }
 
 extern void process_events() {
     
-    SDL_LockMutex(event_lock);
+    if(SDL_TryLockMutex(event_lock)){
+        puts("process_events(): SDL_TryLockMutex failed!");
+        return;
+    };
     SDL_Event event;
 
     while (SDL_PollEvent(&event)) {
@@ -260,25 +274,17 @@ extern void process_events() {
                         break;
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
                         puts("User Opened GUI");
-                        GUI::PlaySound_Pipe();
-                        //if (bRunTests){
-                        //    puts("NES ROM Test disabled!");
-                        //    bRunTests = false;
-                        //    end_testing = true;
-                        //}
-                        exitFlag = true;
+                       // GUI::PlaySound_Pipe();
+                        GUI::PlaySound_UI(UI_SMB_PIPE);
                         GUI::TogglePauseEmulation();
+                        if (bRunTests){
+                            exitFlag = true;
+                        }
                         break;     
                     case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         //* Exit NESalizer!
                         puts("User quit!");
-                        if (bRunTests){
-                            end_testing = true;
-                            break;
-                        }
-                        unload_rom();
-                        GUI::StopEmulation();
-                        bUserQuits = true;
+                        GUI::Shutdown();
                         break;     
                 }
                 break;
@@ -316,13 +322,7 @@ extern void process_events() {
                 }
                 break;
             case SDL_QUIT:
-                unload_rom();
-                end_emulation();
-                exit_sdl_thread();
-                if (bRunTests){
-                    end_testing = true;
-                }
-                bUserQuits = true;
+                GUI::Shutdown();
                 break;
             case SDL_CONTROLLERDEVICEADDED:
                 add_controller(event.cdevice.which);
@@ -340,7 +340,11 @@ extern void process_events() {
 }
 
 void sdl_thread() {
-
+    
+    if (bExtraVerbose){
+        puts("Entering sdl_thread().");
+    }
+    
     for(;;) {
 
         //* Wait for the emulation thread to signal that a frame has completed
@@ -352,6 +356,9 @@ void sdl_thread() {
         if (pending_sdl_thread_exit) {
             SDL_UnlockMutex(frame_lock);
             pending_sdl_thread_exit = false;
+            if (bExtraVerbose){
+                puts("quitting sdl_thread().");
+            }
             return;
         }
 
@@ -363,6 +370,9 @@ void sdl_thread() {
 
         //* Still mid-run.. Stop Rendering
         if(bUserQuits){
+            if (bExtraVerbose){
+                puts("bUserQuits = 'true'. leaving sdl_thread().");
+            }
             return;
         }
         
@@ -401,6 +411,9 @@ void sdl_thread() {
 }
 
 void exit_sdl_thread() {
+    if (bExtraVerbose){
+        puts("exit_sdl_thread() called.");
+    }
     SDL_LockMutex(frame_lock);
     pending_sdl_thread_exit = true;
     SDL_CondSignal(frame_available_cond);
@@ -418,12 +431,14 @@ void init_sdl() {
     
     SDL_ShowCursor(SDL_DISABLE);
 
-    #ifdef USE_BLIP_ADD_DELTA_FAST
-        puts("USE_BLIP_ADD_DELTA_FAST enabled!");
-    #else
-        puts("USE_BLIP_ADD_DELTA_FAST disabled.");
-    #endif
-    
+    if (bVerbose){
+        #ifdef USE_BLIP_ADD_DELTA_FAST
+            puts("USE_BLIP_ADD_DELTA_FAST enabled!");
+        #else
+            puts("USE_BLIP_ADD_DELTA_FAST disabled.");
+        #endif 
+    }
+
     if(SDL_GameControllerAddMappingsFromFile("res/gamecontrollerdb.txt") == -1){
         printf("SDL_GameControllerAddMappingsFromFile(): %s", SDL_GetError());
     };
@@ -491,7 +506,7 @@ void init_sdl() {
     want.samples  = sdl_audio_buffer_size;
     want.callback = audio_callback;
 
-    puts("Opening SDL Audio Device");
+    puts("Opening SDL Audio Device...");
     audio_device_id = SDL_OpenAudioDevice(NULL, 0, &want, &got, SDL_AUDIO_ALLOW_ANY_CHANGE);
     
     if (bVerbose){
@@ -520,8 +535,10 @@ void init_sdl() {
 
 void deinit_sdl() {
 
-    puts("Shutting down NESalizer!");
-
+    if (bExtraVerbose){
+        puts("Shutting down NESalizer!");
+    }
+    
     //* ImGUI Rom Dialog
     ImGui_ImplSDLRenderer_Shutdown();
     ImGui_ImplSDL2_Shutdown();

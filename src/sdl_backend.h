@@ -36,12 +36,6 @@ void put_pixel(unsigned x, unsigned y, uint32_t color);
 void draw_frame();
 
 int const sample_rate = 44100; 
-//int const sample_rate = 22050; 
-//int const sample_rate = 11025; 
-//int const sample_rate = 96000;
-//int const sample_rate = 59562;
-
-//Uint16 const sdl_audio_buffer_size = 2048; // 1024; 
 Uint16 const sdl_audio_buffer_size = 2048;
 
 //* Protect the audio buffer from concurrent access by the emulation thread and SDL

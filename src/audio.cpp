@@ -77,10 +77,9 @@ void read_samples(int16_t *dst, size_t len) {
             memset(dst + contig_avail + avail, 0, sizeof(*buf)*(len - avail));
             assert(start_index + avail == end_index);
             start_index = end_index;
-            if (bExtraVerbose){
-                puts("audio buffer underflow!");
-            }
-	        
+            //if (!bRunTests && bExtraVerbose){
+            //    puts("audio buffer underflow!");
+            //}
         }
     }
 }
@@ -128,9 +127,10 @@ static void write_samples(int16_t const *src, size_t len) {
             memcpy(buf + end_index, src + contig_avail, sizeof(*buf)*avail);
             assert(end_index + avail == start_index);
             end_index = start_index;
-            if (bExtraVerbose){
-                puts("audio buffer overflow!");
-            }
+            //if (!bRunTests && bExtraVerbose){
+            //    puts("audio buffer overflow!");
+            //}
+            
         }
     }
 }
@@ -189,16 +189,17 @@ void end_audio_frame() {
     //* buffer (which lacks bounds checking).
     int const avail = blip_samples_avail(blip);
     if (avail != 0) {
-        if (bExtraVerbose){
-            puts("Warning: didn't read all samples from blip_buf - dropping samples");
-        }
+        //if (!bRunTests && bExtraVerbose){
+        //     puts("Warning: didn't read all samples from blip_buf - dropping samples");
+        //}
         blip_clear(blip);
     }
 
     //* Save the samples to the audio ring buffer
-    lock_audio();
+    //TODO: test not locking audio. could be faster?
+    //lock_audio();
     write_samples(blip_samples, n_samples);
-    unlock_audio();
+    //unlock_audio();
 }
 
 void init_audio_for_rom() {

@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
     while (!bUserQuits){
 
         if (bShowGUI){
-            //* Our ImGUI File Dialog
+            //* Our GUI
             GUI::process_inputs();
             GUI::render();
         }else{
@@ -108,9 +108,8 @@ int main(int argc, char *argv[]) {
     }
     //* End, Clean up.
     deinit_sdl();
-    if (bVerbose){
-        //* Last statement!
-        puts("NESalizer shutdown cleanly!");
-    }
+
+    //* Last statement!
+    puts("NESalizer shutdown cleanly!");
     
 }

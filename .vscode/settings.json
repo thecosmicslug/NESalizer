@@ -68,5 +68,10 @@
   },
   "todo-tree.filtering.excludeGlobs": [
     "**/imgui/**"
-  ]
+  ],
+  "separators.enabledSymbols": [
+    "Functions"
+  ],
+  "separators.functions.ignoreCallbackInline": true,
+  "separators.constructors.borderWidth": 0
 }
