@@ -28,7 +28,8 @@ void render();
 
 bool LoadROM(const char *filename);
 void StopEmulation();
-void TogglePauseEmulation();
+void PauseEmulation();
+void ResumeEmulation();
 void ShowTextOverlay(std::string MSG);
 void IncreaseStateSlot();
 void DecreaseStateSlot();
@@ -36,7 +37,6 @@ void LoadState();
 void SaveState();
 void Shutdown();
 
-bool GetEmulationBackground();
 bool PlaySound_UI(UISound effect);
 bool saveScreenshot(const std::string &file);
 

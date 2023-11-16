@@ -30,7 +30,7 @@ static bool pending_sdl_thread_exit;
 //* Our screen buffer
 Uint32 *back_buffer __attribute__((aligned(32)));
 Uint32 render_buffers[2][240*256] __attribute__((aligned(32)));
-int pitch;
+
 
 //* Configuration flags
 bool exitFlag = false;
@@ -79,6 +79,7 @@ void draw_frame() {
     frameStart = SDL_GetTicks();
 
     SDL_LockMutex(frame_lock);
+
     if (ready_to_draw_new_frame) {
         frame_available = true;
         SDL_CondSignal(frame_available_cond);
@@ -167,7 +168,11 @@ void RunEmulation(){
     }
     
     exitFlag = false;
-    running_state = true;
+    
+    if (!bShowGUI){
+        running_state = true;
+    }
+    
     if(!(emu_thread = SDL_CreateThread(emulation_thread, "emulation", 0))) {
         printf("failed to create emulation thread: %s\n", SDL_GetError());
         exit(1);
@@ -271,10 +276,9 @@ extern void process_events() {
                         GUI::SaveState();
                         break;
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
-                        GUI::GetEmulationBackground();
                         puts("User Opened GUI");
                         GUI::PlaySound_UI(UI_SMB_PIPE);
-                        GUI::TogglePauseEmulation();
+                        GUI::PauseEmulation();
                         if (bRunTests){
                             exitFlag = true;
                         }
@@ -338,11 +342,12 @@ extern void process_events() {
 }
 
 void sdl_thread() {
-    
+
+    int pitch;
     if (bExtraVerbose){
         puts("Entering sdl_thread().");
     }
-    
+
     for(;;) {
 
         //* Wait for the emulation thread to signal that a frame has completed
@@ -382,7 +387,7 @@ void sdl_thread() {
             SDL_UnlockTexture(screen_tex);
         }
 
-        SDL_RenderClear(renderer);
+        //SDL_RenderClear(renderer);
         if(SDL_RenderCopy(renderer, screen_tex, NULL, NULL)) {
             printf("failed to copy rendered frame to render target: %s", SDL_GetError());
             exit(1);
@@ -409,9 +414,11 @@ void sdl_thread() {
 }
 
 void exit_sdl_thread() {
+    
     if (bExtraVerbose){
         puts("exit_sdl_thread() called.");
     }
+    //* Wait for the emulation thread to signal that a frame has completed
     SDL_LockMutex(frame_lock);
     pending_sdl_thread_exit = true;
     SDL_CondSignal(frame_available_cond);

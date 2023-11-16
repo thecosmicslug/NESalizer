@@ -47,6 +47,56 @@ SDL_Renderer *GUIrenderer;
 
 using std::string;
 
+
+void SetIMGUI_Style(){
+
+    ImGuiStyle& style = ImGui::GetStyle();
+    style.WindowRounding = 5.3f;
+    style.FrameRounding = 2.3f;
+    style.ScrollbarRounding = 0;
+
+    style.Colors[ImGuiCol_Text]                  = ImVec4(0.90f, 0.90f, 0.90f, 1.00f);
+    style.Colors[ImGuiCol_TextDisabled]          = ImVec4(0.60f, 0.60f, 0.60f, 1.00f);
+    style.Colors[ImGuiCol_WindowBg]              = ImVec4(0.09f, 0.09f, 0.15f, 1.00f);
+    style.Colors[ImGuiCol_ChildBg]               = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_PopupBg]               = ImVec4(0.05f, 0.05f, 0.10f, 1.00f);
+    style.Colors[ImGuiCol_Border]                = ImVec4(0.70f, 0.70f, 0.70f, 1.00f);
+    style.Colors[ImGuiCol_BorderShadow]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    style.Colors[ImGuiCol_FrameBg]               = ImVec4(0.00f, 0.00f, 0.01f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgHovered]        = ImVec4(0.90f, 0.80f, 0.80f, 1.00f);
+    style.Colors[ImGuiCol_FrameBgActive]         = ImVec4(0.90f, 0.65f, 0.65f, 1.00f);
+    style.Colors[ImGuiCol_TitleBg]               = ImVec4(0.00f, 0.00f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgCollapsed]      = ImVec4(0.40f, 0.40f, 0.80f, 1.00f);
+    style.Colors[ImGuiCol_TitleBgActive]         = ImVec4(0.00f, 0.00f, 0.00f, 0.87f);
+    style.Colors[ImGuiCol_MenuBarBg]             = ImVec4(0.01f, 0.01f, 0.02f, 0.80f);
+    style.Colors[ImGuiCol_ScrollbarBg]           = ImVec4(0.20f, 0.25f, 0.30f, 0.60f);
+    style.Colors[ImGuiCol_ScrollbarGrab]         = ImVec4(0.55f, 0.53f, 0.55f, 0.51f);
+    style.Colors[ImGuiCol_ScrollbarGrabHovered]  = ImVec4(0.56f, 0.56f, 0.56f, 1.00f);
+    style.Colors[ImGuiCol_ScrollbarGrabActive]   = ImVec4(0.56f, 0.56f, 0.56f, 0.91f);
+    style.Colors[ImGuiCol_CheckMark]             = ImVec4(0.90f, 0.90f, 0.90f, 0.83f);
+    style.Colors[ImGuiCol_SliderGrab]            = ImVec4(0.70f, 0.70f, 0.70f, 0.62f);
+    style.Colors[ImGuiCol_SliderGrabActive]      = ImVec4(0.30f, 0.30f, 0.30f, 0.84f);
+    style.Colors[ImGuiCol_Button]                = ImVec4(0.48f, 0.72f, 0.89f, 0.49f);
+    style.Colors[ImGuiCol_ButtonHovered]         = ImVec4(0.50f, 0.69f, 0.99f, 0.68f);
+    style.Colors[ImGuiCol_ButtonActive]          = ImVec4(0.80f, 0.50f, 0.50f, 1.00f);
+    style.Colors[ImGuiCol_Header]                = ImVec4(0.30f, 0.69f, 1.00f, 0.53f);
+    style.Colors[ImGuiCol_HeaderHovered]         = ImVec4(0.44f, 0.61f, 0.86f, 1.00f);
+    style.Colors[ImGuiCol_HeaderActive]          = ImVec4(0.38f, 0.62f, 0.83f, 1.00f);
+    style.Colors[ImGuiCol_Separator]             = ImVec4(0.50f, 0.50f, 0.50f, 1.00f);
+    style.Colors[ImGuiCol_SeparatorHovered]      = ImVec4(0.70f, 0.60f, 0.60f, 1.00f);
+    style.Colors[ImGuiCol_SeparatorActive]       = ImVec4(0.90f, 0.70f, 0.70f, 1.00f);
+    style.Colors[ImGuiCol_ResizeGrip]            = ImVec4(1.00f, 1.00f, 1.00f, 0.85f);
+    style.Colors[ImGuiCol_ResizeGripHovered]     = ImVec4(1.00f, 1.00f, 1.00f, 0.60f);
+    style.Colors[ImGuiCol_ResizeGripActive]      = ImVec4(1.00f, 1.00f, 1.00f, 0.90f);
+    style.Colors[ImGuiCol_PlotLines]             = ImVec4(1.00f, 1.00f, 1.00f, 1.00f);
+    style.Colors[ImGuiCol_PlotLinesHovered]      = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_PlotHistogram]         = ImVec4(0.90f, 0.70f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_PlotHistogramHovered]  = ImVec4(1.00f, 0.60f, 0.00f, 1.00f);
+    style.Colors[ImGuiCol_TextSelectedBg]        = ImVec4(0.00f, 0.00f, 1.00f, 0.35f);
+    style.Colors[ImGuiCol_ModalWindowDimBg]      = ImVec4(0.20f, 0.20f, 0.20f, 0.35f);
+
+}
+
 namespace GUI
 {
 
@@ -240,21 +290,39 @@ void StopEmulation(){
 }
 
 //* Play/stop the emulation. 
-void TogglePauseEmulation(){
+void PauseEmulation(){
 
-    if (running_state){
-        if (bVerbose){
-            puts("running_state = 'false'");
-        }
-        running_state = false;
-        bShowGUI = true;
-    }else{
-        if (bVerbose){
-            puts("running_state = 'true'");
-        }
-        bShowGUI = false;
-        running_state = true;
+    //* Get background for GUI.
+    GetEmulationBackground();
+
+    if (bVerbose){
+        puts("running_state = 'false'");
     }
+
+    //NOTE: need to test these delays. 200 worked.
+    SDL_Delay(50);
+    bShowGUI = true;
+    running_state = false;
+
+}
+
+//* Play/stop the emulation. 
+void ResumeEmulation(){
+
+    //* Clear old background.
+    if (game_background){
+        SDL_DestroyTexture(game_background);
+        game_background = nullptr;
+    }
+
+    if (bVerbose){
+        puts("running_state = 'true'");
+    }
+
+    //NOTE: need to test these delays. 200 worked.
+    SDL_Delay(200);
+    bShowGUI = false;
+    running_state = true;
 
 }
 
@@ -299,6 +367,7 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
         printf("IMG_Init(): %s\n", IMG_GetError());
     }
 
+    //* Load our default background.
     SDL_Surface *backSurface = IMG_Load("res/wallpaper.png");
     if(!backSurface) {
         printf("IMG_Load: %s\n", IMG_GetError());
@@ -344,7 +413,9 @@ void init(SDL_Window* scr, SDL_Renderer* rend){
     io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;   // Hide Mouse Cursor 
     io.IniFilename = nullptr;
 
-    ImGui::StyleColorsDark();
+    SetIMGUI_Style();
+    //ImGui::StyleColorsDark();
+
     ImGui_ImplSDL2_InitForSDLRenderer(scr, GUIrenderer);
     ImGui_ImplSDLRenderer_Init(GUIrenderer);
 }
@@ -355,6 +426,14 @@ void deinit(){
     //* GUI Overlay
     if (!overlay_tex){
         SDL_DestroyTexture(overlay_tex);
+    }
+
+    if(!game_background){
+        SDL_DestroyTexture(game_background);
+    }
+
+    if(!nes_background){
+        SDL_DestroyTexture(nes_background);
     }
     TTF_CloseFont(overlay_font);
     TTF_Quit();
@@ -404,19 +483,15 @@ void process_inputs() {
                         GUI::Shutdown();
                         break; 
                     case SDL_CONTROLLER_BUTTON_LEFTSTICK:
-                        //* Load GUI
-                        if (game_background){
-                            SDL_DestroyTexture(game_background);
-                            game_background = nullptr;
-                        }
+                        //* Return to Emulation
                         if (bRunTests){
                             puts("User returned to tests.");
                             GUI::PlaySound_UI(UI_SMB_PIPE);
-                            TogglePauseEmulation();
+                            ResumeEmulation();
                         }else if (is_rom_loaded()){
                             puts("User returned to game.");
                             GUI::PlaySound_UI(UI_SMB_PIPE);
-                            TogglePauseEmulation();
+                            ResumeEmulation();
                         }
                         break;    
                 }
@@ -432,12 +507,7 @@ void process_inputs() {
 //* Render ImGUI File Dialog
 void render(){
 
-    if(SDL_TryLockMutex(frame_lock)){
-        puts("GUI::render(): SDL_TryLockMutex failed!");
-        return;
-    };
-
-    SDL_RenderClear(GUIrenderer);
+    //SDL_RenderClear(GUIrenderer);
     if (!game_background){
         if(SDL_RenderCopy(GUIrenderer, nes_background, NULL, NULL)) {
             printf("failed to copy GUI background to render target: %s", SDL_GetError());
@@ -498,10 +568,9 @@ void render(){
             unload_rom();
         }
         if(LoadROM(dlg.getChosenPath())){
+            //* Return to Emulation
             GUI::PlaySound_UI(UI_SMB_COIN);
-            //TogglePauseEmulation();
-            running_state = true;
-            bShowGUI = false;
+            ResumeEmulation();
         };
     }
 
@@ -511,10 +580,7 @@ void render(){
     }
 
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
-
     SDL_RenderPresent(GUIrenderer);
-
-    SDL_UnlockMutex(frame_lock);
 
 }
 
