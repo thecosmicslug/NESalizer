@@ -1,6 +1,6 @@
+
 #include "common.h"
-#include "sdl_backend.h"
-#include <SDL2/SDL.h>
+#include "input.h"
 
 static struct Controller_data {
     //* Button states

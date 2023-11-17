@@ -1,10 +1,10 @@
-nesalizer.log
 .gdbinit
 Zelda(E).nes
 Mario(E).nes
 *.d
 *.o
 *.sav
+*.log
 *.state0
 *.state1
 *.state2
@@ -15,3 +15,7 @@ Mario(E).nes
 *.state7
 *.state8
 *.state9
+build*
+output/nesalizer
+output/nesalizer-steamlink.tgz
+output/nesalizer-steamlink/nesalizer

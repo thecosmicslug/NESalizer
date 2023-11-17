@@ -1,7 +1,6 @@
 //* Holds initialized data where C99's designated initializer feature is handy
 
 #include "opcodes.h"
-
 #include <stdint.h>
 
 //* See cpu.cpp.

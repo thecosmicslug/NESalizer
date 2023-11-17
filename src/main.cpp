@@ -1,47 +1,42 @@
 #include <SDL2/SDL.h>
-#include <unistd.h>
 
 #include "common.h"
-#include "apu.h"
 #include "cpu.h"
-#include "input.h"
+#include "apu.h"
 #include "mapper.h"
-#include "rom.h"
+#include "test.h"
+
 #include "sdl_backend.h"
 #include "sdl_frontend.h"
 
-char const *program_name;
-
+//* Program Entry Point
 int main(int argc, char *argv[]) {
 
     setvbuf (stdout, NULL, _IONBF, 0);
-    printf("-------------------------------------------------------\n");
-    printf("---------- NESalizer-SteamLink Booted up!    ----------\n");
-    printf("-------------------------------------------------------\n");
+    printf("NESalizer-SteamLink Starting...\n");
 
-    SDL_version sdl_compiled_version, sdl_linked_version;
-    SDL_VERSION(&sdl_compiled_version);
-    SDL_GetVersion(&sdl_linked_version);
-
-    printf("Using SDL backend. Compiled against SDL %d.%d.%d, linked to SDL %d.%d.%d.\n",
-        sdl_compiled_version.major, sdl_compiled_version.minor, sdl_compiled_version.patch,
-           sdl_linked_version.major, sdl_linked_version.minor, sdl_linked_version.patch);
-
-    //* Setup Audio/Video Outputs with SDL & ImGUI
-    init_sdl();
-    SDL_ShowCursor(SDL_DISABLE);
+    //* Load NES Modules.
     init_apu();
     init_mappers();
-    
-    //* Parsing command-line arguments first.
+
+    //* Parsing command-line arguments.
     int opt;
-    while ((opt = getopt(argc, argv, "t:pnf:")) != -1) {
+    while ((opt = getopt(argc, argv, "t:pnf:vd")) != -1) {
         switch (opt) {
+            case 'v':
+                puts("Verbose Mode Enabled.");
+                bVerbose = true;
+                break;
+            case 'd':
+                //* Debug Mode will output even more, lagging emulation.
+                puts("Debug Mode Enabled, even more verbose!");
+                bVerbose = true;
+                bExtraVerbose = true;
+                break;
             case 't':
                 //* Run NES Tests
-                if (optarg != NULL)
-                {
-                    testfilename = optarg;
+                if (optarg != NULL){
+                    testlist_filename = optarg;
                     bRunTests=true;
                     bShowGUI=false;
                 }
@@ -51,7 +46,7 @@ int main(int argc, char *argv[]) {
                 if (!bForceNTSC){
                     bForcePAL=true;
                 }else{
-                    printf("Cannot force both PAL and NTSC.. Ignoring both options\n");
+                    puts("Cannot force both PAL and NTSC.. Ignoring both options");
                     bForcePAL=false;
                     bForceNTSC=false;
                 }
@@ -61,7 +56,7 @@ int main(int argc, char *argv[]) {
                 if (!bForcePAL){
                     bForceNTSC=true;
                 }else{
-                    printf("Cannot force both PAL and NTSC.. Ignoring both options\n");
+                    puts("Cannot force both PAL and NTSC.. Ignoring both options");
                     bForcePAL=false;
                     bForceNTSC=false;
                 }
@@ -69,12 +64,7 @@ int main(int argc, char *argv[]) {
             case 'f':
                 if (!bRunTests){
                     //* Try Loading the supplied ROM
-                    if(load_rom(optarg)){
-                        GUI::SetROMStateFilename();
-                        std::string tmpstr = "ROM  '";
-                        tmpstr  += basename(fname);
-                        tmpstr  += "'  Loaded!";
-                        GUI::ShowTextOverlay(tmpstr);
+                    if(GUI::LoadROM(optarg)){
                         bShowGUI=false;
                     }else{
                         bShowGUI=true;
@@ -86,22 +76,40 @@ int main(int argc, char *argv[]) {
         }
     }
 
-    //* Our Main Execution Loop
-    while (true)
-    {
-        if (bShowGUI)
-        {
-            //* Our ImGUI File Dialog
-            process_events();
-            GUI::render();
-        
-        }else{
-            //* Run Emulation!
-            GUI::main_run();
-        }
+    //* Show SDL version info
+    if (bVerbose){
+        SDL_version sdl_compiled_version, sdl_linked_version;
+        SDL_VERSION(&sdl_compiled_version);
+        SDL_GetVersion(&sdl_linked_version);
+
+        printf("Compiled against SDL %d.%d.%d, linked to SDL %d.%d.%d.\n",
+            sdl_compiled_version.major, sdl_compiled_version.minor, sdl_compiled_version.patch,
+            sdl_linked_version.major, sdl_linked_version.minor, sdl_linked_version.patch);
     }
 
+    //* Setup SDL Backend.
+    init_sdl();
+
+    if (bShowGUI){
+        puts("Showing GUI to user.");    
+    }
+
+    //* Our Main Execution Loop
+    while (!bUserQuits){
+
+        if (bShowGUI){
+            //* Our GUI
+            GUI::process_inputs();
+            GUI::render();
+        }else{
+            //* Run Emulation!
+            RunEmulation();
+        }
+    }
+    //* End, Clean up.
     deinit_sdl();
-    printf("---- NESalizer-SteamLink Shut down cleanly!");
-    printf("------------------------------------------------------");
+
+    //* Last statement!
+    puts("NESalizer shutdown cleanly!");
+    
 }

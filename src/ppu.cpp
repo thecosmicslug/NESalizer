@@ -428,7 +428,7 @@ static void move_to_next_oam_byte() {
 //* within range are copied into the secondary OAM.
 static void do_sprite_evaluation() {
     if (dot == 65) {
-        //* TODO: Should these be cleared even if rendering is disabled?
+        //NOTE: Should these be cleared even if rendering is disabled?
         overflow_detection = oam_addr_overflow = sec_oam_addr_overflow = false;
         sec_oam_addr = 0;
     }
@@ -548,7 +548,7 @@ static void do_sprite_loading() {
     //* Load sprite attributes from secondary OAM
 
     case 0:
-        //* TODO: How does the sprite_y/index loading work in detail?
+        //NOTE: How does the sprite_y/index loading work in detail?
 
         //* Dummy NT fetch
         ppu_addr_bus = 0x2000 | (v & 0x0FFF);
@@ -607,7 +607,7 @@ static void do_sprite_loading() {
 static void do_render_line_ops() {
     //* We get a short dummy bg-related fetch here. Probably not worth
     //* emulating the exact address.
-    //* TODO: This breaks mmc3_test_2 - look into it more
+    //WARNING: This breaks mmc3_test_2 - look into it more
     //*if (dot == 0) ppu_addr_bus = bg_pat_addr;
 
     if ((dot >= 2 && dot <= 257) || (dot >= 322 && dot <= 337))
@@ -680,7 +680,7 @@ static void do_prerender_line_ops() {
     //* This might be one tick off due to the possibility of reading the flags
     //* really shortly after they are cleared in the preferred alignment
     if (dot == 1) sprite_overflow = sprite_zero_hit = initial_frame = false;
-    //* TODO: Explain why the timing works out like this (and is it cycle-perfect?)
+    //TODO: Explain why the timing works out like this (and is it cycle-perfect?)
     if (dot == 2) in_vblank = false;
 
     if (rendering_enabled) {
@@ -875,8 +875,7 @@ uint8_t read_ppu_reg(unsigned n) {
         {
         //* Micro machines reads this during rendering
         if (rendering_enabled && (scanline < 240 || scanline == prerender_line)) {
-            //* TODO: Make this work automagically through proper emulation of
-            //* the interval after the sprite fetches
+            //TODO: Make this work automagically through proper emulation of the interval after the sprite fetches
             if (dot >= 323)
                 return sec_oam[0];
             return oam_data;
@@ -1040,8 +1039,7 @@ void write_ppu_reg(uint8_t val, unsigned n) {
 }
 
 //* Helpers for setting the cold boot state and resetting
-//* TODO: Make set_ppu_cold_boot_state() use reset() for things reset by the
-//* reset signal
+//TODO: Make set_ppu_cold_boot_state() use reset() for things reset by the reset signal.
 
 static void clear_2000() {
     //* $2000

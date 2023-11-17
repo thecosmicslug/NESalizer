@@ -1,9 +1,13 @@
 #include "common.h"
-#include <signal.h>
 
-//*
 //* General utility functions
-//*
+void replaceExt(string& s, const string& newExt) {
+
+   string::size_type i = s.rfind('.', s.length());
+   if (i != string::npos) {
+      s.replace(i+1, newExt.length(), newExt);
+   }
+}
 
 bool is_pow_2_or_0(unsigned n) {
     return !(n & (n - 1));

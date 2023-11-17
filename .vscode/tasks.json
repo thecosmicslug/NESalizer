@@ -1,68 +1,16 @@
 {
-    // See https://go.microsoft.com/fwlink/?LinkId=733558
-    // for the documentation about the tasks.json format
-    "version": "2.0.0",
-    "tasks": [
-      {
-        "label": "Release Build",
-        "type": "shell",
-        "command": "${workspaceFolder}/build_nesalizer.sh",
-        "args": [
-          ""
-        ],
-        "dependsOn": [
-        //  "Make Clean"
-        ],
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": true,
-          "panel": "shared",
-          "showReuseMessage": false,
-          "clear": true
-        },
-        "group": {
-          "kind": "build",
-          "isDefault": true
-        }
-      },
-      {
-        "label": "Debug Build",
-        "type": "shell",
-        "command": "${workspaceFolder}/build_nesalizer.sh",
-        "args": [
-          "conf=DEBUG"
-        ],
-        //"dependsOn": [
-        //  "Make Clean"
-        //],
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": true,
-          "panel": "shared",
-          "showReuseMessage": false,
-          "clear": true
-        },
-        "group": {
-          "kind": "test",
-          "isDefault": true
-        }
-      },
-      {
-        "label": "Make Clean",
-        "type": "shell",
-        "command": "make clean",
-        "args": [],
-        "presentation": {
-          "echo": true,
-          "reveal": "always",
-          "focus": true,
-          "panel": "shared",
-          "showReuseMessage": false,
-          "clear": false
-        },
-        "problemMatcher": []
-      }
-    ]
-  }
+  "version": "2.0.0",
+  "tasks": [{
+      "label": "build-nesalizer",
+      "command": "", // Could be any other shell command
+      "args": ["${workspaceFolder}/build_nesalizer_steamlink.sh"],
+      "type": "shell",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "shared",
+        "clear": true
+    }
+  }]
+}

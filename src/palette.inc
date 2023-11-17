@@ -2,7 +2,7 @@
 
 //* NTSC to RGB color conversion. This is influenced by the color tint bits.
 //* Palette borrowed from Beannaich.
-//* TODO: Generate automatically.
+//TODO: Generate automatically.
 
 uint32_t const nes_to_rgb[8][64] =
     //* No emphasis
