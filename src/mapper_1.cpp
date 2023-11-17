@@ -55,8 +55,7 @@ void mapper_1_write(uint8_t val, uint16_t addr) {
 
     //* Writes after the first write are ignored for writes on consecutive CPU
     //* cycles. Bill & Ted's Excellent Adventure needs this.
-    //* TODO: This breaks the Polynes demo. Investigate if it runs on the real
-    //* thing.
+    //TODO: This breaks the Polynes demo. Investigate if it runs on the real thing.
     //*if (ppu_cycle == last_write_cycle + 3) return;
     //*last_write_cycle = ppu_cycle;
 

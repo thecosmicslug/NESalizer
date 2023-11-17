@@ -244,11 +244,12 @@ int blip_read_samples( blip_t* m, short out [], int count, int stereo )
 	return count;
 }
 
-/* Things that didn't help performance on x86:
+	//NOTE: Things that didn't help performance on x86:
+	/*
 	__attribute__((aligned(128)))
 	#define short int
 	restrict
-*/
+	*/
 
 /* Sinc_Generator( 0.9, 0.55, 4.5 ) */
 static short const bl_step [phase_count + 1] [half_width] =
@@ -330,7 +331,7 @@ void blip_add_delta( blip_t* m, unsigned time, int delta )
 	out [15] += in[0]*delta + in[0-half_width]*delta2;
 }
 
-/*
+
 void blip_add_delta_fast( blip_t* m, unsigned time, int delta )
 {
 	unsigned fixed = (unsigned) ((time * m->factor + m->offset) >> pre_shift);
@@ -345,4 +346,3 @@ void blip_add_delta_fast( blip_t* m, unsigned time, int delta )
 	out [7] += delta * delta_unit - delta2;
 	out [8] += delta2;
 }
-*/

@@ -6,9 +6,11 @@
     "res": true,
     "src/imgui": true,
     "*.sav": true,
+    "*.log": true,
     "*.nes": true
   },
   "files.associations": {
+    "*.ino": "cpp",
     "array": "cpp",
     "atomic": "cpp",
     "bit": "cpp",
@@ -58,6 +60,18 @@
     "stdexcept": "cpp",
     "streambuf": "cpp",
     "cinttypes": "cpp",
-    "typeinfo": "cpp"
-  }
+    "typeinfo": "cpp",
+    "compare": "cpp",
+    "concepts": "cpp",
+    "set": "cpp",
+    "numbers": "cpp"
+  },
+  "todo-tree.filtering.excludeGlobs": [
+    "**/imgui/**"
+  ],
+  "separators.enabledSymbols": [
+    "Functions"
+  ],
+  "separators.functions.ignoreCallbackInline": true,
+  "separators.constructors.borderWidth": 0
 }

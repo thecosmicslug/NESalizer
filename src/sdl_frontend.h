@@ -1,40 +1,43 @@
-#pragma once
+//* ImGUI Config
+#define IMGUI_USER_CONFIG "nesalizer_imgui_config.h"
 
 #include "imgui/imgui.h"
-#include "imgui_sdl.h"
-#include "imguifilesystem.h"   
+#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdlrenderer.h"
+#include "imguifilesystem.h" 
 
-#include <string>
-
-extern bool bShowGUI;
-extern bool bShowOverlayText;
 extern unsigned int OverlayTickCount;
 extern std::string TextOverlayMSG;
 
-extern bool bRunTests;
-extern char *testfilename;
+extern bool bShowGUI;
+extern bool bShowOverlayText;
 
-extern bool bForcePAL;
-extern bool bForceNTSC;
-
-extern char *statename;
-extern int statenum;
-extern char *savename;
-
+enum UISound
+{
+    UI_SMB_BUMP = 0,
+    UI_SMB_COIN = 1,
+    UI_SMB_PIPE = 2,
+};
 
 namespace GUI {
 
-void init(SDL_Window * scr, SDL_Renderer * rend);
+void init(SDL_Window* scr, SDL_Renderer* rend);
+void deinit();
+void process_inputs();
 void render();
-void main_run();
-void stop_main_run();
-void unload_rom();
 
-bool saveScreenshot(const std::string &file);
-void SetROMStateFilename();
-void SetSRAMFilename();
+bool LoadROM(const char *filename);
+bool LoadState();
+bool SaveState();
+void StopEmulation();
+void PauseEmulation();
+void ResumeEmulation();
 void ShowTextOverlay(std::string MSG);
-void PlaySound_Coin();
-void PlaySound_Bump();
-void PlaySound_Pipe();
+void IncreaseStateSlot();
+void DecreaseStateSlot();
+void Shutdown();
+
+bool PlaySound_UI(UISound effect);
+bool saveScreenshot(const std::string &file);
+
 }

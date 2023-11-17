@@ -3,5 +3,5 @@
 void init_save_states_for_rom();
 void deinit_save_states_for_rom();
 
-void save_state();
-void load_state();
+bool save_state(char const *statefile);
+bool load_state(char const *statefile);

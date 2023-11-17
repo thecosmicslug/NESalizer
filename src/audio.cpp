@@ -3,16 +3,16 @@
 #include "audio.h"
 #include "cpu.h"
 #include "blip_buf.h"
-#include "save_states.h"
-#include "sdl_backend.h"
 #include "timing.h"
+#include "sdl_backend.h"
 
 //*
 //* Audio ring buffer
 //*
 
 //* Make room for 1/6th seconds of delay
-static int16_t buf[GE_POW_2(sample_rate/6)];
+
+static int16_t buf[GE_POW_2(sample_rate/6)] __attribute__((aligned(32))) ;
 //* Indices from start_index up to but not including end_index (modulo wrapping)
 //* contain samples
 static size_t start_index = 0, end_index = 0;
@@ -35,8 +35,8 @@ static bool playback_started;
 //* PAL, which gives a slightly larger buffer than NTSC. (The expression is
 //* equivalent to 1.3*sample_rate/frames_per_second, but a compile-time constant
 //* in C++03.)
-//* TODO: Make dependent on max_adjust.
-static int16_t blip_samples[1300*sample_rate/pal_milliframes_per_second];
+//TODO: Make dependent on max_adjust.
+static int16_t blip_samples[1300*sample_rate/pal_milliframes_per_second] __attribute__((aligned(32)));
 
 
 void read_samples(int16_t *dst, size_t len) {
@@ -77,7 +77,9 @@ void read_samples(int16_t *dst, size_t len) {
             memset(dst + contig_avail + avail, 0, sizeof(*buf)*(len - avail));
             assert(start_index + avail == end_index);
             start_index = end_index;
-	        //*puts("audio buffer underflow!");
+            //if (!bRunTests && bExtraVerbose){
+            //    puts("audio buffer underflow!");
+            //}
         }
     }
 }
@@ -125,7 +127,10 @@ static void write_samples(int16_t const *src, size_t len) {
             memcpy(buf + end_index, src + contig_avail, sizeof(*buf)*avail);
             assert(end_index + avail == start_index);
             end_index = start_index;
-            //*puts("audio buffer overflow!");
+            //if (!bRunTests && bExtraVerbose){
+            //    puts("audio buffer overflow!");
+            //}
+            
         }
     }
 }
@@ -137,39 +142,43 @@ static double fill_level() {
 }
 
 void set_audio_signal_level(int16_t level) {
-    //* TODO: Do something to reduce the initial pop here?
+    //TODO: Do something to reduce the initial pop here?
     static int16_t previous_signal_level = 0;
-
     unsigned time  = frame_offset;
-    int      delta = level - previous_signal_level;
+    int delta      = level - previous_signal_level;
 
-    blip_add_delta(blip, time, delta);
+    //* Stil need to decide which is best to use.
+    #ifdef USE_BLIP_ADD_DELTA_FAST
+        blip_add_delta_fast(blip, time, delta);
+    #else
+        blip_add_delta(blip, time, delta);
+    #endif
+
     previous_signal_level = level;
 }
 
 void end_audio_frame() {
-    if (frame_offset == 0)
-        //* No audio added; blip_end_frame() dislikes being called with an
-        //* offset of 0
+
+    if (frame_offset == 0){
+        //* No audio added; blip_end_frame() dislikes being called with an* offset of 0.
         return;
-        
+    }
+
     //* Bring the signal level at the end of the frame to zero as outlined in set_audio_signal_level()
     set_audio_signal_level(0);
-
     blip_end_frame(blip, frame_offset);
 
     if (playback_started) {
-        //* Fudge playback rate by an amount proportional to the difference
-        //* between the desired and current buffer fill levels to try to steer
-        //* towards it
 
+        //* Fudge playback rate by an amount proportional to the difference
+        //* between the desired and current buffer fill levels to try to steer towards it
         double const fudge_factor = 1.0 + 2*max_adjust*(0.5 - fill_level());
         blip_set_rates(blip, cpu_clock_rate, sample_rate*fudge_factor);
-    }
-    else {
+
+    }else{
+
         if (fill_level() >= 0.5) {
             start_audio_playback();
-	        //*audio_pause(0);
             playback_started = true;
         }
     }
@@ -180,14 +189,17 @@ void end_audio_frame() {
     //* buffer (which lacks bounds checking).
     int const avail = blip_samples_avail(blip);
     if (avail != 0) {
-        puts("Warning: didn't read all samples from blip_buf - dropping samples\n");
+        //if (!bRunTests && bExtraVerbose){
+        //     puts("Warning: didn't read all samples from blip_buf - dropping samples");
+        //}
         blip_clear(blip);
     }
 
     //* Save the samples to the audio ring buffer
-    lock_audio();
+    //TODO: test not locking audio. could be faster?
+    //lock_audio();
     write_samples(blip_samples, n_samples);
-    unlock_audio();
+    //unlock_audio();
 }
 
 void init_audio_for_rom() {
