@@ -27,14 +27,14 @@ void process_inputs();
 void render();
 
 bool LoadROM(const char *filename);
+bool LoadState();
+bool SaveState();
 void StopEmulation();
 void PauseEmulation();
 void ResumeEmulation();
 void ShowTextOverlay(std::string MSG);
 void IncreaseStateSlot();
 void DecreaseStateSlot();
-void LoadState();
-void SaveState();
 void Shutdown();
 
 bool PlaySound_UI(UISound effect);

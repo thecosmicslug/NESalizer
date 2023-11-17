@@ -47,7 +47,6 @@ SDL_Renderer *GUIrenderer;
 
 using std::string;
 
-
 void SetIMGUI_Style(){
 
     ImGuiStyle& style = ImGui::GetStyle();
@@ -126,7 +125,7 @@ void SetROMStateFilename(){
 
 }
 
-void SaveState(){
+bool SaveState(){
 
     //* Save to current state-slot
     if (save_state(statename)){
@@ -136,6 +135,7 @@ void SaveState(){
         tmpstr  += "'  Saved!";
         ShowTextOverlay(tmpstr);
         GUI::PlaySound_UI(UI_SMB_COIN);
+        return true;
 
     }else{
 
@@ -144,11 +144,12 @@ void SaveState(){
         tmpstr += "'";
         ShowTextOverlay(tmpstr);
         GUI::PlaySound_UI(UI_SMB_BUMP);
+        return false;
     };
 
 }
 
-void LoadState(){
+bool LoadState(){
 
     //* Load Savestate from file
     if(load_state(statename)){
@@ -158,6 +159,7 @@ void LoadState(){
         tmpstr += "'  Loaded!";
         GUI::PlaySound_UI(UI_SMB_COIN);
         ShowTextOverlay(tmpstr);
+        return true;
 
     }else{
 
@@ -166,6 +168,7 @@ void LoadState(){
         tmpstr += "'  Not Found!";
         ShowTextOverlay(tmpstr);
         GUI::PlaySound_UI(UI_SMB_BUMP);
+        return false;
     };
 }
 
@@ -301,6 +304,7 @@ void PauseEmulation(){
 
     //NOTE: need to test these delays. 200 worked.
     SDL_Delay(50);
+
     bShowGUI = true;
     running_state = false;
 
@@ -321,6 +325,7 @@ void ResumeEmulation(){
 
     //NOTE: need to test these delays. 200 worked.
     SDL_Delay(200);
+
     bShowGUI = false;
     running_state = true;
 
@@ -526,7 +531,6 @@ void render(){
     ImGui::Text("NESalizer for the Steam Link - Ported by TheCosmicSlug.");      
 
     //* Display current ROM info.
-
     if (is_rom_loaded()){
         ImGui::Text("Current ROM: '%s'.", basename(rom_filename()));
     }else{
@@ -534,26 +538,49 @@ void render(){
     }
 
     //* GUI File Dialog
-    static ImGuiFs::Dialog dlg;
-    bool browseButtonPressed = false;
+    static ImGuiFs::Dialog rom_dlg;
+    static ImGuiFs::Dialog test_dlg;
+
+    static bool TestButtonPressed = false;
+    static bool RomBrowseButtonPressed = false;
+
     if (ImGui::Button("Open ROM..")){
-        browseButtonPressed = true;
+        RomBrowseButtonPressed = true;
     }
 
-    const bool SaveStateButtonPressed = ImGui::Button("Save State"); 
-    const bool LoadStateButtonPressed = ImGui::Button("Load State"); 
+    bool SaveStateButtonPressed;
+    bool LoadStateButtonPressed;
+
+    if (is_rom_loaded()){
+        SaveStateButtonPressed = ImGui::Button("Save State"); 
+        LoadStateButtonPressed = ImGui::Button("Load State"); 
+    }else{
+        ImGui::BeginDisabled();
+        SaveStateButtonPressed = ImGui::Button("Save State"); 
+        LoadStateButtonPressed = ImGui::Button("Load State"); 
+        ImGui::EndDisabled();
+    }
+
+    if (ImGui::Button("Run NES tests..")){
+        TestButtonPressed = true;
+    }
+
+
     const bool SettingsButtonPressed = ImGui::Button("Options"); 
-    const bool AboutButtonPressed = ImGui::Button("About"); 
     const bool QuitButtonPressed = ImGui::Button("Exit NESalizer!"); 
 
-    const char* chosenPath;
-    chosenPath = dlg.chooseFileDialog(browseButtonPressed,"./roms/",".nes", "Choose a ROM.");
+    const char* RomchosenPath;
+    RomchosenPath = rom_dlg.chooseFileDialog(RomBrowseButtonPressed,"./roms/",".nes", "Choose a ROM.");
+
+    const char* TestchosenPath;
+    TestchosenPath = test_dlg.chooseFileDialog(TestButtonPressed,"./",".txt", "Choose Test List.");
+
 
     ImGui::End();
     ImGui::Render();
 
     //* Load a new ROM?
-    if (strlen(chosenPath)>0) {
+    if (strlen(RomchosenPath)>0) {
 
         if (bRunTests){
             puts("NES ROM Tests disabled!");
@@ -567,11 +594,33 @@ void render(){
             StopEmulation();
             unload_rom();
         }
-        if(LoadROM(dlg.getChosenPath())){
+        if(LoadROM(rom_dlg.getChosenPath())){
             //* Return to Emulation
+            RomBrowseButtonPressed = false;
             GUI::PlaySound_UI(UI_SMB_COIN);
             ResumeEmulation();
         };
+    }
+
+    //* Save State
+    if (SaveStateButtonPressed){
+        //* crashes if no rom loaded
+        if (SaveState()){
+            //ResumeEmulation();
+        }
+    }
+
+    //* Load State
+    if (LoadStateButtonPressed){
+        //* crashes if no rom loaded
+        if (LoadState()){
+            ResumeEmulation();
+        }
+    }
+
+    //* Options
+    if (SettingsButtonPressed){
+        //TODO: Add settings
     }
 
     //* Quit?
