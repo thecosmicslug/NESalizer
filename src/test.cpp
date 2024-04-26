@@ -6,10 +6,16 @@
 #include "sdl_frontend.h"
 
 #include <fstream>
+#include <stdio.h>
+
+#define BUF_SIZE 65536
+
+int TotalTests;
+int CurrentTestNum;
 
 bool end_testing;
 char const *current_filename;
-char *testlist_filename;
+char const *testlist_filename;
 
 unsigned int StartAllTestTime = 0, currentTestTime;
 
@@ -40,7 +46,12 @@ static void run_test(char const *file) {
     current_filename = file;
 
     //* Show Overlay UI
-    GUI::ShowTextOverlay(file);
+
+    std::string tmpstr =  '[' + std::__cxx11::to_string(CurrentTestNum) + '/' + std::__cxx11::to_string(TotalTests) + ']';
+    tmpstr += " '";
+    tmpstr += file;
+    tmpstr += "'";
+    GUI::ShowTextOverlay(tmpstr);
 
     //* Run Test
     load_rom(file);
@@ -79,6 +90,7 @@ void run_tests() {
         std::string line;
         while (std::getline(file, line)) {
             //* Run the Test ROM
+            CurrentTestNum = CurrentTestNum + 1;
             if (end_testing) goto end;
             RUN_TEST(line.c_str());
         }
@@ -102,4 +114,54 @@ void run_tests() {
 end:
     //* Premature end of testing.
     puts("run_tests() finished early.");
+}
+
+int CountTestList(char const *testlist){
+
+    FILE *fileptr;
+    char buf[BUF_SIZE];
+    int counter = 0;
+
+    fileptr = fopen(testlist, "r");
+    if (fileptr == NULL){
+        printf("Could not open file.");
+        return 0;
+    }
+
+    for(;;)
+    {
+        size_t res = fread(buf, 1, BUF_SIZE, fileptr);
+        if (ferror(fileptr)){
+            return 0;
+        }
+            
+        int i;
+        for (i = 0; i < res; i++){
+            if (buf[i] == '\n'){
+                counter++;
+            }
+        }
+
+        if (feof(fileptr)){
+            break;
+        }
+            
+    }
+
+    fclose(fileptr);
+    return counter;
+
+
+}
+
+void setup_tests(char const *testlist){
+
+    CurrentTestNum = 0;
+    TotalTests = CountTestList(testlist);
+    testlist_filename = testlist;
+    
+    end_testing = false;
+    bRunTests=true;
+    bShowGUI=false;
+
 }

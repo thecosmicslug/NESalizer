@@ -130,7 +130,7 @@ bool get_controller_index(SDL_JoystickID instance_id, int *controller_index)
 	for (int i = 0; i < SDL_arraysize(controllers); ++i) {
 		Controller_t &controller = controllers[i];
 		if (controller.type != Controller_t::k_Gamepad) {
-			continue;
+		    continue;
 		}
 		if (controller.instance_id != instance_id) {
 			continue;
@@ -253,40 +253,22 @@ extern void process_events() {
                     case SDL_CONTROLLER_BUTTON_START:
                         set_button_state(controller_index_down,3);
                         break;
-                    case SDL_CONTROLLER_BUTTON_X:
+                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
                         //* Change Saveslot -1 
                         GUI::DecreaseStateSlot();
                         break;
-                    case SDL_CONTROLLER_BUTTON_Y:
+                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
                         //* Change Saveslot +1 
                         GUI::IncreaseStateSlot();
                         break;
-                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                        //* Load State
-                        if (bVerbose){
-                            puts("user called load_state()");
-                        }
-                        GUI::LoadState();
-                        break;
-                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
-                        //* Save State
-                        if (bVerbose){
-                            puts("user called save_state()");
-                        }
-                        GUI::SaveState();
-                        break;
-                    case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+                   // case SDL_CONTROLLER_BUTTON_LEFTSTICK:
+                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
                         puts("User Opened GUI");
                         GUI::PlaySound_UI(UI_SMB_PIPE);
                         GUI::PauseEmulation();
                         if (bRunTests){
                             exitFlag = true;
                         }
-                        break;     
-                    case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-                        //* Exit NESalizer!
-                        puts("User quit!");
-                        GUI::Shutdown();
                         break;     
                 }
                 break;

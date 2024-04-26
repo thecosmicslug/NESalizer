@@ -2801,7 +2801,17 @@ const char* ChooseFileMainMethod(Dialog& ist,const char* directory,const bool _i
         //ImGui::Spacing();
     }
     // End selection field----------------------------------------------------------------
+    //* start of new code from Flix01 for cancelling the dialog.
+    if (rv[0]==0 && (ImGui::IsKeyPressed(ImGuiKey_Delete) || ImGui::IsKeyPressed(ImGuiKey_GamepadL3) )) {
+        ImGui::CloseCurrentPopup();
+#       ifdef IMGUI_USE_MINIZIP
+        I.unz.close();
+#       endif // IMGUI_USE_MINIZIP
+        I.freeMemory();
 
+        I.userHasJustCancelledDialog = true;
+    }
+    // end new code
     if (rv[0]!=0 || !I.open) {
         ImGui::CloseCurrentPopup();
 #       ifdef IMGUI_USE_MINIZIP

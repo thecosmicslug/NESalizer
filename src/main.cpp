@@ -36,9 +36,7 @@ int main(int argc, char *argv[]) {
             case 't':
                 //* Run NES Tests
                 if (optarg != NULL){
-                    testlist_filename = optarg;
-                    bRunTests=true;
-                    bShowGUI=false;
+                    setup_tests(optarg);
                 }
                 break;
             case 'p':

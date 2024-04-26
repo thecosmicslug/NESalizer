@@ -18,13 +18,28 @@ extern unsigned wram_8k_banks;
 
 //* True if this is a PAL ROM
 extern bool is_pal;
-extern bool has_battery;
 
 //* If true, the mapper has bus conflicts and does not shut off ROM output for
 //* writes to the $8000+ range. This results in an AND between the written value
 //* and the value in ROM. Cybernoid depends on this being emulated.
 extern bool has_bus_conflicts;
 extern Mapper_fns mapper_fns;
+
+struct ROMHeader {  
+    int PRGrom;  
+    int CHRrom;
+    int WRAM;
+    int Mapper;
+    int SaveState;
+    int sRAMsize;
+    bool HasTrainer;
+    bool HasSRAM;
+    bool IsPAL;
+    const char* Mirroring;
+    char Name[30];  
+}; 
+
+extern ROMHeader LoadedROMHeader; 
 
 bool load_rom(const char *filename);
 void unload_rom();

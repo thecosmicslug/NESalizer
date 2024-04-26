@@ -43,6 +43,8 @@ char const *const mirroring_to_str[N_MIRRORING_MODES] =
     "one-screen, high",
     "four-screen" };
 
+ROMHeader LoadedROMHeader; 
+
 static void do_rom_specific_overrides();
 
 void SetSRAMFilename(char const *romfile){
@@ -77,16 +79,21 @@ bool load_rom(const char *filename) {
     if(rom_buf_size < 16){
         printf("'%s' is too short to be a valid iNES file (is %zu bytes - not even enough to hold the 16-byte "
         "header)", filename, rom_buf_size);
+        rom_loaded = false;
         return false;
     }
 
     if(!MEM_EQ(rom_buf, "NES\x1A")){
         printf("'%s' does not start with the expected byte sequence 'N', 'E', 'S', 0x1A", filename);
+        rom_loaded = false;
         return false;
     }
 
     prg_16k_banks = rom_buf[4];
     chr_8k_banks  = rom_buf[5];
+
+    LoadedROMHeader.PRGrom = 16 * prg_16k_banks;
+    LoadedROMHeader.CHRrom = 8  * chr_8k_banks;
 
     if (!bRunTests && bExtraVerbose){
         printf("PRG ROM size: %u KB\nCHR ROM size: %u KB\n", 16*prg_16k_banks, 8*chr_8k_banks);
@@ -94,10 +101,12 @@ bool load_rom(const char *filename) {
 
     if(prg_16k_banks == 0) { //NOTE: This makes sense for NES 2.0
         printf("the iNES header specifies zero banks of PRG ROM (program storage), which makes no sense");
+        rom_loaded = false;
         return false;
     }
     if(!is_pow_2_or_0(prg_16k_banks) || !is_pow_2_or_0(chr_8k_banks)) {
         printf("non-power-of-two PRG and CHR sizes are not supported yet");
+        rom_loaded = false;
         return false;
     }
 
@@ -106,6 +115,7 @@ bool load_rom(const char *filename) {
         printf("'%s' is too short to hold the specified amount of PRG (program data) and CHR (graphics data) "
             "ROM - is %zu bytes, expected at least %zu bytes (16 (header) + %s%u*16384 (PRG) + %u*8192 (CHR))",
             filename, rom_buf_size, min_size, has_trainer ? "512 (trainer) + " : "", prg_16k_banks, chr_8k_banks);
+        rom_loaded = false;
         return false;
     }
 
@@ -129,6 +139,8 @@ bool load_rom(const char *filename) {
         mapper |= (rom_buf[7] & 0xF0);
     }
 
+    LoadedROMHeader.Mapper = mapper;
+
     if (!bRunTests && bExtraVerbose){
         printf("mapper: %u\n", mapper);
     }
@@ -139,11 +151,13 @@ bool load_rom(const char *filename) {
     }else{
         mirroring = rom_buf[6] & 1 ? VERTICAL : HORIZONTAL;
         if ((has_battery = rom_buf[6] & 2)){
+            LoadedROMHeader.HasSRAM = true;
             if (!bRunTests && bVerbose){
                 puts("has battery");
             }   
         } 
         if ((has_trainer = rom_buf[6] & 4)){
+            LoadedROMHeader.HasTrainer = true;
             if (!bRunTests && bVerbose){
                 puts("has trainer");
             }
@@ -170,12 +184,16 @@ bool load_rom(const char *filename) {
     //* Needs to come after a possible override
     prerender_line = is_pal ? 311 : 261;
 
+    LoadedROMHeader.IsPAL = is_pal;
+    LoadedROMHeader.Mirroring = mirroring_to_str[mirroring];
+
     if (!bRunTests && bExtraVerbose){
         printf("mirroring: %s\n", mirroring_to_str[mirroring]);
     }
             
     if(!(ciram = alloc_array_init<uint8_t>(mirroring == FOUR_SCREEN ? 0x1000 : 0x800, 0xFF))) {
         printf("failed to allocate %u bytes of nametable memory", mirroring == FOUR_SCREEN ? 0x1000 : 0x800);
+        rom_loaded = false;
         return false;
     }
 
@@ -191,6 +209,7 @@ bool load_rom(const char *filename) {
         wram_8k_banks = (mapper == 5) ? 8 : 1;
         if(!(wram_6000_page = wram_base = alloc_array_init<uint8_t>(0x2000*wram_8k_banks, 0xFF))) {
             printf("failed to allocate %u KB of WRAM", 8*wram_8k_banks);
+            rom_loaded = false;
             return false;
         }
     }
@@ -201,6 +220,7 @@ bool load_rom(const char *filename) {
         chr_8k_banks = (mapper == 13) ? 2 : 1;
         if(!(chr_base = alloc_array_init<uint8_t>(0x2000*chr_8k_banks, 0xFF))) {
             printf("failed to allocate %u KB of CHR RAM", 8*chr_8k_banks);
+            rom_loaded = false;
             return false;
         }
     }else{
@@ -212,6 +232,7 @@ bool load_rom(const char *filename) {
         if (!bRunTests){
             printf("NES 2.0 not yet supported");
         }
+        rom_loaded = false;
         return false;
     }
 
@@ -220,6 +241,7 @@ bool load_rom(const char *filename) {
         if (!bRunTests){
             printf("mapper %u not supported\n", mapper);
         }
+        rom_loaded = false;
         return false;
     }
 
@@ -263,7 +285,9 @@ void unload_rom() {
 
     deinit_audio_for_rom();
     deinit_save_states_for_rom();
+
     set_rom_loaded(false);
+    fname = NULL;
 
     if (!bRunTests && bExtraVerbose){
         puts("unload_rom() completed.");
@@ -322,7 +346,12 @@ bool is_rom_loaded() {
 }
 
 const char* rom_filename() {
-    
+    //* Return rom file or NULL if not loaded.
+    if (fname != NULL) { /* AND (or &&) */
+        if (fname[0] == '\0') {
+            return NULL;
+        }
+    }
     return fname;
 }
 

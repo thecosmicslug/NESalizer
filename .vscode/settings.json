@@ -64,7 +64,8 @@
     "compare": "cpp",
     "concepts": "cpp",
     "set": "cpp",
-    "numbers": "cpp"
+    "numbers": "cpp",
+    "bitset": "cpp"
   },
   "todo-tree.filtering.excludeGlobs": [
     "**/imgui/**"

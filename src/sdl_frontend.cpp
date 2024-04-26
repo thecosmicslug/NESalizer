@@ -174,33 +174,41 @@ bool LoadState(){
 
 void IncreaseStateSlot(){
     
-    //* Change Saveslot +1 
-    if (statenum == 9){
-        statenum = 0;
-    }else{
-        statenum = statenum + 1;
+    if (is_rom_loaded()){
+        //* Change Saveslot +1 
+        if (statenum == 9){
+            statenum = 0;
+        }else{
+            statenum = statenum + 1;
+        }
+
+        std::string tmpstr = "Save-State Slot '";
+        tmpstr += std::to_string(statenum);
+        tmpstr += "' Activated.";
+        SetROMStateFilename();
+        ShowTextOverlay(tmpstr);
+        GUI::PlaySound_UI(UI_SMB_COIN);
     }
 
-    std::string tmpstr = "Save-State Slot '";
-    tmpstr += std::to_string(statenum);
-    tmpstr += "' Activated.";
-    SetROMStateFilename();
-    GUI::PlaySound_UI(UI_SMB_COIN);
 }
 
 void DecreaseStateSlot(){
-    //* Change Saveslot -1 
-    if (statenum == 0){
-        statenum = 9;
-    }else{
-        statenum = statenum - 1;
+
+    if (is_rom_loaded()){
+        //* Change Saveslot -1 
+        if (statenum == 0){
+            statenum = 9;
+        }else{
+            statenum = statenum - 1;
+        }
+        std::string tmpstr = "Save-State Slot '";
+        tmpstr += std::to_string(statenum);
+        tmpstr += "' Activated.";
+        SetROMStateFilename();
+        ShowTextOverlay(tmpstr);
+        GUI::PlaySound_UI(UI_SMB_COIN);
     }
-    std::string tmpstr = "Save-State Slot '";
-    tmpstr += std::to_string(statenum);
-    tmpstr += "' Activated.";
-    SetROMStateFilename();
-    ShowTextOverlay(tmpstr);
-    GUI::PlaySound_UI(UI_SMB_COIN);
+
 }
 
 void ShowTextOverlay(std::string MSG){
@@ -482,12 +490,15 @@ void process_inputs() {
                 }
                 switch(event.cbutton.button)
                 {
+                    case SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                        //* Change Saveslot -1 
+                        GUI::DecreaseStateSlot();
+                        break;
+                    case SDL_CONTROLLER_BUTTON_RIGHTSHOULDER:
+                        //* Change Saveslot +1 
+                        GUI::IncreaseStateSlot();
+                        break;
                     case SDL_CONTROLLER_BUTTON_RIGHTSTICK:
-                        //* Exit NESalizer!
-                        puts("User quit!");
-                        GUI::Shutdown();
-                        break; 
-                    case SDL_CONTROLLER_BUTTON_LEFTSTICK:
                         //* Return to Emulation
                         if (bRunTests){
                             puts("User returned to tests.");
@@ -498,7 +509,7 @@ void process_inputs() {
                             GUI::PlaySound_UI(UI_SMB_PIPE);
                             ResumeEmulation();
                         }
-                        break;    
+                        break; 
                 }
                 break;
         }
@@ -527,61 +538,70 @@ void render(){
     ImGui_ImplSDL2_NewFrame();
     ImGui::NewFrame();
     
-    ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_NoSavedSettings);
+    ImGui::Begin("NESalizer",NULL,ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoSavedSettings);
     ImGui::Text("NESalizer for the Steam Link - Ported by TheCosmicSlug.");      
+    ImGui::Separator();
 
-    //* Display current ROM info.
-    if (is_rom_loaded()){
-        ImGui::Text("Current ROM: '%s'.", basename(rom_filename()));
-    }else{
-        ImGui::Text("Current ROM: <none loaded>.");
-    }
+    bool SaveStateButtonPressed;
+    bool LoadStateButtonPressed;
 
     //* GUI File Dialog
     static ImGuiFs::Dialog rom_dlg;
     static ImGuiFs::Dialog test_dlg;
 
-    static bool TestButtonPressed = false;
-    static bool RomBrowseButtonPressed = false;
+    const bool RomBrowseButtonPressed = ImGui::Button("Open ROM..");
+    ImGui::SameLine();
 
-    if (ImGui::Button("Open ROM..")){
-        RomBrowseButtonPressed = true;
-    }
-
-    bool SaveStateButtonPressed;
-    bool LoadStateButtonPressed;
-
+    //* Display current ROM info.
     if (is_rom_loaded()){
-        SaveStateButtonPressed = ImGui::Button("Save State"); 
-        LoadStateButtonPressed = ImGui::Button("Load State"); 
+        if (rom_filename() != NULL){
+            ImGui::Text("Current ROM: '%s'.", basename(rom_filename()));
+            SaveStateButtonPressed = ImGui::Button("Save State");
+            ImGui::SameLine();
+            LoadStateButtonPressed = ImGui::Button("Load State"); 
+        }else{
+            ImGui::Text("Current ROM: <none loaded>.");
+            ImGui::BeginDisabled();
+            SaveStateButtonPressed = ImGui::Button("Save State");
+            ImGui::SameLine();
+            LoadStateButtonPressed = ImGui::Button("Load State"); 
+            ImGui::EndDisabled();
+        }
     }else{
+        ImGui::Text("Current ROM: <none loaded>.");
         ImGui::BeginDisabled();
-        SaveStateButtonPressed = ImGui::Button("Save State"); 
+        SaveStateButtonPressed = ImGui::Button("Save State");
+        ImGui::SameLine();
         LoadStateButtonPressed = ImGui::Button("Load State"); 
         ImGui::EndDisabled();
     }
 
-    if (ImGui::Button("Run NES tests..")){
-        TestButtonPressed = true;
+    if(bRunTests){
+        ImGui::BeginDisabled();
     }
 
+    const bool TestButtonPressed = ImGui::Button("NES Tests..");
 
-    const bool SettingsButtonPressed = ImGui::Button("Options"); 
+    if(bRunTests){
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        ImGui::Text("[ Running test %i out of %i. ]", CurrentTestNum, TotalTests);
+    }else{
+        ImGui::SameLine();
+        ImGui::Text("[ NES Tests not running. ]");
+    }
+
+    ImGui::Separator();
+
     const bool QuitButtonPressed = ImGui::Button("Exit NESalizer!"); 
 
-    const char* RomchosenPath;
-    RomchosenPath = rom_dlg.chooseFileDialog(RomBrowseButtonPressed,"./roms/",".nes", "Choose a ROM.");
+    const char* RomChosenPath = "";
+    const char* TestChosenPath = "";
+    RomChosenPath = rom_dlg.chooseFileDialog(RomBrowseButtonPressed,"./roms/",".nes", "Choose a ROM.");
+    TestChosenPath = test_dlg.chooseFileDialog(TestButtonPressed,"./",".txt", "Choose Test List.");
 
-    const char* TestchosenPath;
-    TestchosenPath = test_dlg.chooseFileDialog(TestButtonPressed,"./",".txt", "Choose Test List.");
-
-
-    ImGui::End();
-    ImGui::Render();
-
-    //* Load a new ROM?
-    if (strlen(RomchosenPath)>0) {
-
+    //* Load a new ROM
+    if (strlen(RomChosenPath)>0) {
         if (bRunTests){
             puts("NES ROM Tests disabled!");
             bRunTests = false;
@@ -594,17 +614,33 @@ void render(){
             StopEmulation();
             unload_rom();
         }
-        if(LoadROM(rom_dlg.getChosenPath())){
+        if(LoadROM(RomChosenPath)){
             //* Return to Emulation
-            RomBrowseButtonPressed = false;
+            //RomBrowseButtonPressed = false;
             GUI::PlaySound_UI(UI_SMB_COIN);
             ResumeEmulation();
-        };
+        }
     }
+
+    //* Load a test list
+    if (strlen(TestChosenPath)>0){
+        
+        if(is_rom_loaded()){
+            //* Unload any existing ROM
+            StopEmulation();
+            unload_rom();
+        }
+        setup_tests(TestChosenPath);
+        //TestButtonPressed = false;
+        GUI::PlaySound_UI(UI_SMB_COIN);
+        ResumeEmulation();
+    }
+
+    ImGui::End();
+    ImGui::Render();
 
     //* Save State
     if (SaveStateButtonPressed){
-        //* crashes if no rom loaded
         if (SaveState()){
             //ResumeEmulation();
         }
@@ -612,21 +648,34 @@ void render(){
 
     //* Load State
     if (LoadStateButtonPressed){
-        //* crashes if no rom loaded
         if (LoadState()){
             ResumeEmulation();
         }
-    }
-
-    //* Options
-    if (SettingsButtonPressed){
-        //TODO: Add settings
     }
 
     //* Quit?
     if (QuitButtonPressed){
         Shutdown();
     }
+
+    //* Check if we need to show a message onscreen
+    if (bShowOverlayText){
+        unsigned int CurrentTickCount;
+        CurrentTickCount = SDL_GetTicks();
+        if(CurrentTickCount - OverlayTickCount < 2500){ //* 2.5secs
+            int texW = 0;
+            int texH = 0;
+            //* Show the overlay
+            SDL_QueryTexture(overlay_tex, NULL, NULL, &texW, &texH);
+            SDL_Rect dstrect = { 10, 10, texW, texH };
+            SDL_RenderCopy(GUIrenderer, overlay_tex, NULL, &dstrect);
+        }else{
+            //* Disable the overlay now 
+            SDL_DestroyTexture(overlay_tex);
+            bShowOverlayText=false;
+        }
+    } 
+
 
     ImGui_ImplSDLRenderer_RenderDrawData(ImGui::GetDrawData());
     SDL_RenderPresent(GUIrenderer);
